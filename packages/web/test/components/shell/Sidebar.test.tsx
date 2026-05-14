@@ -33,7 +33,9 @@ function renderSidebar(initial = '/') {
   });
   return render(
     <QueryClientProvider client={qc}>
-      <RouterProvider router={router} />
+      {/* The Register module augmentation pins router types to the main app
+          router; cast to bypass that for the locally-scoped test router. */}
+      <RouterProvider router={router as never} />
     </QueryClientProvider>,
   );
 }

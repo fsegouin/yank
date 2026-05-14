@@ -169,7 +169,6 @@ packages:
   },
   "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "build": "pnpm -r run build",
     "lint": "eslint .",
     "format": "prettier --write .",
     "typecheck": "pnpm -r run typecheck",
@@ -414,8 +413,7 @@ mkdir -p packages/shared/src packages/shared/test
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "build": "tsc"
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "typescript": "*"
@@ -1003,7 +1001,6 @@ mkdir -p packages/db/src/schema packages/db/test packages/db/drizzle
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "tsc",
     "drizzle:generate": "drizzle-kit generate",
     "drizzle:migrate": "tsx src/migrate.ts"
   },
@@ -1875,21 +1872,21 @@ mkdir -p packages/api/src
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "main": "./dist/index.js",
+  "main": "./src/index.ts",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@yank/db": "workspace:*",
     "@yank/shared": "workspace:*",
+    "drizzle-orm": "~0.36.0",
     "fastify": "~5.1.0",
-    "ioredis": "~5.4.0"
+    "ioredis": "~5.4.0",
+    "tsx": "~4.19.0"
   },
   "devDependencies": {
-    "tsx": "~4.19.0",
     "typescript": "*"
   }
 }
@@ -1972,108 +1969,49 @@ process.on('SIGTERM', shutdown);
 
 - [ ] **Step 6: Create `packages/api/Dockerfile`**
 
+Single-stage with tsx running TypeScript directly — no build step, no `dist/`. Same code path in dev and prod. Startup penalty ≈100 ms, negligible for a long-running api.
+
 ```dockerfile
 # syntax=docker/dockerfile:1.7
-FROM node:22-alpine AS deps
+FROM node:22-alpine
 WORKDIR /app
-RUN corepack enable
+RUN corepack enable && addgroup -S app && adduser -S app -G app
+
+# Install deps first for cache friendliness
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY packages/shared/package.json packages/shared/package.json
 COPY packages/db/package.json packages/db/package.json
 COPY packages/api/package.json packages/api/package.json
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm config set store-dir /pnpm/store && pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm config set store-dir /pnpm/store && \
+    pnpm install --frozen-lockfile
 
-FROM node:22-alpine AS build
-WORKDIR /app
-RUN corepack enable
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
-COPY --from=deps /app/packages/db/node_modules ./packages/db/node_modules
-COPY --from=deps /app/packages/api/node_modules ./packages/api/node_modules
+# Source
 COPY tsconfig.base.json ./
 COPY packages/shared ./packages/shared
 COPY packages/db ./packages/db
 COPY packages/api ./packages/api
-RUN pnpm --filter @yank/shared build \
- && pnpm --filter @yank/db build \
- && pnpm --filter @yank/api build
 
-FROM node:22-alpine AS runtime
-WORKDIR /app
 ENV NODE_ENV=production
-RUN corepack enable && addgroup -S app && adduser -S app -G app
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/packages/shared/dist ./packages/shared/dist
-COPY --from=build /app/packages/shared/package.json ./packages/shared/package.json
-COPY --from=build /app/packages/db/dist ./packages/db/dist
-COPY --from=build /app/packages/db/drizzle ./packages/db/drizzle
-COPY --from=build /app/packages/db/package.json ./packages/db/package.json
-COPY --from=build /app/packages/api/dist ./packages/api/dist
-COPY --from=build /app/packages/api/package.json ./packages/api/package.json
 USER app
 EXPOSE 3001
-CMD ["node", "packages/api/dist/index.js"]
+CMD ["pnpm", "--filter", "@yank/api", "start"]
 ```
 
-- [ ] **Step 7: Update shared package main to dist when building**
-
-This step prevents the build container failing to resolve `./src/index.ts` paths under `NODE_ENV=production`. Edit `packages/shared/package.json` `exports` to point at dist when built:
-
-```json
-{
-  "name": "@yank/shared",
-  "private": true,
-  "version": "0.1.0",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
-  "scripts": {
-    "typecheck": "tsc --noEmit",
-    "build": "tsc"
-  },
-  "devDependencies": {
-    "typescript": "*"
-  }
-}
-```
-
-Similarly edit `packages/db/package.json` `exports`:
-
-```json
-"main": "./dist/index.js",
-"types": "./dist/index.d.ts",
-"exports": {
-  ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
-  "./schema": { "types": "./dist/schema/index.d.ts", "import": "./dist/schema/index.js" }
-}
-```
-
-This means **dev** (tsx) resolves the TS source via tsx's loader and **prod** (node + compiled dist) resolves the JS — both work.
-
-Run `pnpm install` to refresh:
-```bash
-pnpm install
-```
-
-- [ ] **Step 8: Verify typecheck**
+- [ ] **Step 7: Verify typecheck**
 
 Run:
 ```bash
+pnpm install
 pnpm --filter @yank/api typecheck
 ```
 
 Expected: exit 0.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add packages/api packages/shared/package.json packages/db/package.json pnpm-lock.yaml
+git add packages/api pnpm-lock.yaml
 git commit -m "feat(api): add Fastify shell with /healthz"
 ```
 
@@ -2102,20 +2040,20 @@ mkdir -p packages/daemon/src
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "main": "./dist/index.js",
+  "main": "./src/index.ts",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@yank/db": "workspace:*",
     "@yank/shared": "workspace:*",
-    "ioredis": "~5.4.0"
+    "drizzle-orm": "~0.36.0",
+    "ioredis": "~5.4.0",
+    "tsx": "~4.19.0"
   },
   "devDependencies": {
-    "tsx": "~4.19.0",
     "typescript": "*"
   }
 }
@@ -2177,44 +2115,26 @@ setInterval(() => log.debug('heartbeat'), 60_000);
 
 ```dockerfile
 # syntax=docker/dockerfile:1.7
-FROM node:22-alpine AS deps
+FROM node:22-alpine
 WORKDIR /app
-RUN corepack enable
+RUN corepack enable && addgroup -S app && adduser -S app -G app
+
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY packages/shared/package.json packages/shared/package.json
 COPY packages/db/package.json packages/db/package.json
 COPY packages/daemon/package.json packages/daemon/package.json
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm config set store-dir /pnpm/store && pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm config set store-dir /pnpm/store && \
+    pnpm install --frozen-lockfile
 
-FROM node:22-alpine AS build
-WORKDIR /app
-RUN corepack enable
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
-COPY --from=deps /app/packages/db/node_modules ./packages/db/node_modules
-COPY --from=deps /app/packages/daemon/node_modules ./packages/daemon/node_modules
 COPY tsconfig.base.json ./
 COPY packages/shared ./packages/shared
 COPY packages/db ./packages/db
 COPY packages/daemon ./packages/daemon
-RUN pnpm --filter @yank/shared build \
- && pnpm --filter @yank/db build \
- && pnpm --filter @yank/daemon build
 
-FROM node:22-alpine AS runtime
-WORKDIR /app
 ENV NODE_ENV=production
-RUN corepack enable && addgroup -S app && adduser -S app -G app
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/packages/shared/dist ./packages/shared/dist
-COPY --from=build /app/packages/shared/package.json ./packages/shared/package.json
-COPY --from=build /app/packages/db/dist ./packages/db/dist
-COPY --from=build /app/packages/db/drizzle ./packages/db/drizzle
-COPY --from=build /app/packages/db/package.json ./packages/db/package.json
-COPY --from=build /app/packages/daemon/dist ./packages/daemon/dist
-COPY --from=build /app/packages/daemon/package.json ./packages/daemon/package.json
 USER app
-CMD ["node", "packages/daemon/dist/index.js"]
+CMD ["pnpm", "--filter", "@yank/daemon", "start"]
 ```
 
 - [ ] **Step 6: Refresh installs + verify typecheck**
@@ -2259,20 +2179,20 @@ mkdir -p packages/media-worker/src
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "main": "./dist/index.js",
+  "main": "./src/index.ts",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@yank/db": "workspace:*",
     "@yank/shared": "workspace:*",
-    "ioredis": "~5.4.0"
+    "drizzle-orm": "~0.36.0",
+    "ioredis": "~5.4.0",
+    "tsx": "~4.19.0"
   },
   "devDependencies": {
-    "tsx": "~4.19.0",
     "typescript": "*"
   }
 }
@@ -2328,47 +2248,28 @@ setInterval(() => log.debug('heartbeat'), 60_000);
 
 - [ ] **Step 5: Create `packages/media-worker/Dockerfile`**
 
-Identical pattern to daemon's Dockerfile but for `@yank/media-worker`:
-
 ```dockerfile
 # syntax=docker/dockerfile:1.7
-FROM node:22-alpine AS deps
+FROM node:22-alpine
 WORKDIR /app
-RUN corepack enable
+RUN corepack enable && addgroup -S app && adduser -S app -G app
+
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY packages/shared/package.json packages/shared/package.json
 COPY packages/db/package.json packages/db/package.json
 COPY packages/media-worker/package.json packages/media-worker/package.json
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm config set store-dir /pnpm/store && pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm config set store-dir /pnpm/store && \
+    pnpm install --frozen-lockfile
 
-FROM node:22-alpine AS build
-WORKDIR /app
-RUN corepack enable
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
-COPY --from=deps /app/packages/db/node_modules ./packages/db/node_modules
-COPY --from=deps /app/packages/media-worker/node_modules ./packages/media-worker/node_modules
 COPY tsconfig.base.json ./
 COPY packages/shared ./packages/shared
 COPY packages/db ./packages/db
 COPY packages/media-worker ./packages/media-worker
-RUN pnpm --filter @yank/shared build \
- && pnpm --filter @yank/db build \
- && pnpm --filter @yank/media-worker build
 
-FROM node:22-alpine AS runtime
-WORKDIR /app
 ENV NODE_ENV=production
-RUN corepack enable && addgroup -S app && adduser -S app -G app
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/packages/shared/dist ./packages/shared/dist
-COPY --from=build /app/packages/shared/package.json ./packages/shared/package.json
-COPY --from=build /app/packages/db/dist ./packages/db/dist
-COPY --from=build /app/packages/db/package.json ./packages/db/package.json
-COPY --from=build /app/packages/media-worker/dist ./packages/media-worker/dist
-COPY --from=build /app/packages/media-worker/package.json ./packages/media-worker/package.json
 USER app
-CMD ["node", "packages/media-worker/dist/index.js"]
+CMD ["pnpm", "--filter", "@yank/media-worker", "start"]
 ```
 
 - [ ] **Step 6: Refresh installs + verify typecheck**
@@ -2780,7 +2681,7 @@ services:
       dockerfile: packages/api/Dockerfile
     container_name: yank-migrate
     environment: *common-env
-    command: ['node', 'packages/db/dist/migrate.js']
+    command: ['pnpm', '--filter', '@yank/db', 'drizzle:migrate']
     depends_on:
       postgres:
         condition: service_healthy

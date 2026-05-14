@@ -1,0 +1,136 @@
+name: yank
+
+x-common-env: &common-env
+  DATABASE_URL: postgres://${POSTGRES_USER:-yank}:${POSTGRES_PASSWORD:-yank}@postgres:5432/${POSTGRES_DB:-yank}
+  REDIS_URL: redis://redis:6379
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  NODE_ENV: production
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: yank-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-yank}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-yank}
+      POSTGRES_DB: ${POSTGRES_DB:-yank}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER:-yank} -d $${POSTGRES_DB:-yank}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [app-net]
+
+  redis:
+    image: redis:7-alpine
+    container_name: yank-redis
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [app-net]
+
+  migrate:
+    build:
+      context: .
+      dockerfile: packages/api/Dockerfile
+    container_name: yank-migrate
+    environment: *common-env
+    command: ['pnpm', '--filter', '@yank/db', 'drizzle:migrate']
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [app-net]
+    restart: 'no'
+
+  daemon:
+    build:
+      context: .
+      dockerfile: packages/daemon/Dockerfile
+    container_name: yank-daemon
+    restart: unless-stopped
+    environment: *common-env
+    volumes:
+      - baileys-auth:/app/baileys-auth
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks: [app-net]
+
+  api:
+    build:
+      context: .
+      dockerfile: packages/api/Dockerfile
+    container_name: yank-api
+    restart: unless-stopped
+    environment: *common-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:3001/healthz']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [app-net]
+
+  media-worker:
+    build:
+      context: .
+      dockerfile: packages/media-worker/Dockerfile
+    container_name: yank-media-worker
+    restart: unless-stopped
+    environment: *common-env
+    volumes:
+      - media:/app/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks: [app-net]
+
+  web:
+    build:
+      context: .
+      dockerfile: packages/web/Dockerfile
+    container_name: yank-web
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:8080:8080'
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:8080/healthz']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [app-net]
+
+volumes:
+  postgres-data:
+  redis-data:
+  baileys-auth:
+  media:
+
+networks:
+  app-net:
+    driver: bridge

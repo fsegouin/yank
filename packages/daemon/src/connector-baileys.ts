@@ -13,7 +13,6 @@ import { loadAuthState } from './auth-state.js';
 export interface BaileysConnectorOpts {
   authDir: string;
   userId: string;
-  phoneNumber?: string;
 }
 
 export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements Connector {
@@ -80,13 +79,11 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
     });
   }
 
-  async requestPair(method: 'qr' | 'code'): Promise<void> {
+  async requestPair(method: 'qr' | 'code', phoneNumber?: string): Promise<void> {
     if (method === 'code') {
-      if (!this.opts.phoneNumber) {
-        throw new Error("YANK_PHONE_NUMBER not set; can't request pairing code");
-      }
       if (!this.sock) throw new Error('connector not started');
-      const code = await this.sock.requestPairingCode(this.opts.phoneNumber);
+      if (!phoneNumber) throw new Error('phoneNumber required for pair-code flow');
+      const code = await this.sock.requestPairingCode(phoneNumber);
       this.emit('pairing-code', code);
     }
   }

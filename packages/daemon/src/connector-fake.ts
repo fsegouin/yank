@@ -16,7 +16,7 @@ export class FakeConnector extends TypedEmitter<ConnectorEvents> implements Conn
 
   async start(): Promise<void> {}
 
-  async requestPair(method: 'qr' | 'code'): Promise<void> {
+  async requestPair(method: 'qr' | 'code', _phoneNumber?: string): Promise<void> {
     if (method === 'qr') this.emit('qr', 'fake-qr-payload');
     else this.emit('pairing-code', 'FX3-M9A-K2P');
   }

@@ -9,11 +9,6 @@ const EnvSchema = z.object({
     }),
   REDIS_URL: z.string().url().startsWith('redis://'),
   YANK_USER_ID: z.string().uuid({ message: 'YANK_USER_ID must be a UUID v4 or v7' }),
-  YANK_PHONE_NUMBER: z
-    .string()
-    .regex(/^\d{6,15}$/, { message: 'YANK_PHONE_NUMBER must be digits only (6-15 digits)' })
-    .optional()
-    .or(z.literal('').transform(() => undefined)),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 });

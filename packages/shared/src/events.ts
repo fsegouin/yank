@@ -66,6 +66,7 @@ export type DaemonEvent = z.infer<typeof DaemonEventSchema>;
 export const PairCommand = Base.extend({
   type: z.literal('pair'),
   method: z.enum(['qr', 'code']),
+  phoneNumber: z.string().regex(/^\d{6,15}$/).optional(),
 });
 
 export const SendCommand = Base.extend({

@@ -50,7 +50,7 @@ export function createSession(deps: SessionDeps): Session {
         userId: deps.userId,
         onCommand: async (cmd) => {
           if (cmd.type === 'pair') {
-            await deps.connector.requestPair(cmd.method);
+            await deps.connector.requestPair(cmd.method, cmd.phoneNumber);
           } else if (cmd.type === 'send') {
             await handleSendCommand(
               { db, userId: deps.userId, connector: deps.connector, bus },

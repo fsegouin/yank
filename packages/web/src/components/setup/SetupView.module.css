@@ -120,3 +120,27 @@
 .cta:hover {
   filter: brightness(1.05);
 }
+
+.phoneInput {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--radius-1);
+  border: 1px solid var(--border-1);
+  background: var(--bg-1);
+  color: var(--fg-0);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.phoneInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.error {
+  margin-top: 8px;
+  color: oklch(70% 0.2 25);
+  font-size: 13.5px;
+  text-align: left;
+}

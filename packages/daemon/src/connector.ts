@@ -53,7 +53,7 @@ export interface SendResult {
 
 export interface Connector extends TypedEventEmitter<ConnectorEvents> {
   start(): Promise<void>;
-  requestPair(method: 'qr' | 'code'): Promise<void>;
+  requestPair(method: 'qr' | 'code', phoneNumber?: string): Promise<void>;
   sendText(args: SendArgs): Promise<SendResult>;
   close(): Promise<void>;
 }

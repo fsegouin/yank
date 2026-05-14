@@ -73,6 +73,7 @@ export const MessageSchema = z.object({
   media: MediaSchema.optional(),
   threadCount: z.number().int().nonnegative().optional(),
   starred: z.boolean().optional(),
+  senderName: z.string().optional(),
 });
 export type Message = z.infer<typeof MessageSchema>;
 

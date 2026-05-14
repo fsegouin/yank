@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { and, desc, eq, lt } from 'drizzle-orm';
 import type { Db } from '@yank/db';
-import { chats, messages } from '@yank/db/schema';
+import { chats, contacts, messages } from '@yank/db/schema';
 import { newId } from '@yank/shared';
 import type { CommandsBus } from '../commands-bus.js';
 
@@ -51,8 +51,31 @@ export function registerMessagesRoutes(app: FastifyInstance<any, any, any, any>,
 
       // Fetch limit + 1 to detect whether there are more rows.
       const rows = await deps.db
-        .select()
+        .select({
+          id: messages.id,
+          userId: messages.userId,
+          chatId: messages.chatId,
+          waMessageId: messages.waMessageId,
+          senderJid: messages.senderJid,
+          ts: messages.ts,
+          kind: messages.kind,
+          text: messages.text,
+          replyToId: messages.replyToId,
+          editedAt: messages.editedAt,
+          deletedAt: messages.deletedAt,
+          status: messages.status,
+          senderDisplayName: contacts.displayName,
+          senderPushName: contacts.pushName,
+          senderBusinessName: contacts.businessName,
+        })
         .from(messages)
+        .leftJoin(
+          contacts,
+          and(
+            eq(contacts.userId, messages.userId),
+            eq(contacts.jid, messages.senderJid),
+          ),
+        )
         .where(where)
         .orderBy(desc(messages.ts))
         .limit(limit + 1);
@@ -62,13 +85,26 @@ export function registerMessagesRoutes(app: FastifyInstance<any, any, any, any>,
       const nextCursor = hasMore ? page[page.length - 1]!.id : null;
 
       return {
-        messages: page.map((r) => ({
-          ...r,
-          ts: r.ts ? new Date(r.ts).toISOString() : null,
-          editedAt: r.editedAt ? new Date(r.editedAt).toISOString() : null,
-          deletedAt: r.deletedAt ? new Date(r.deletedAt).toISOString() : null,
-          reactions: [],
-        })),
+        messages: page.map((r) => {
+          const {
+            senderDisplayName,
+            senderPushName,
+            senderBusinessName,
+            ...rest
+          } = r;
+          const senderName =
+            r.senderJid === 'me'
+              ? 'You'
+              : (senderDisplayName ?? senderPushName ?? senderBusinessName ?? r.senderJid);
+          return {
+            ...rest,
+            ts: r.ts ? new Date(r.ts).toISOString() : null,
+            editedAt: r.editedAt ? new Date(r.editedAt).toISOString() : null,
+            deletedAt: r.deletedAt ? new Date(r.deletedAt).toISOString() : null,
+            reactions: [],
+            senderName,
+          };
+        }),
         nextCursor,
       };
     },

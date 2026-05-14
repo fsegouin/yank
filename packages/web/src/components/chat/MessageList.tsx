@@ -65,7 +65,7 @@ export function MessageList({ chatId, onOpenThread }: Props) {
           !prev ||
           prev.senderJid !== m.senderJid ||
           new Date(m.ts).getTime() - new Date(prev.ts).getTime() > 4 * 60_000;
-        const displayName = nameByJid.get(m.senderJid) ?? m.senderJid;
+        const displayName = m.senderName ?? nameByJid.get(m.senderJid) ?? m.senderJid;
         return (
           <div key={m.id}>
             {newDay && (

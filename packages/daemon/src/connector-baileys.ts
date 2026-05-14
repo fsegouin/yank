@@ -80,12 +80,14 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
   }
 
   async requestPair(method: 'qr' | 'code', phoneNumber?: string): Promise<void> {
-    if (method === 'code') {
-      if (!this.sock) throw new Error('connector not started');
-      if (!phoneNumber) throw new Error('phoneNumber required for pair-code flow');
-      const code = await this.sock.requestPairingCode(phoneNumber);
-      this.emit('pairing-code', code);
+    if (method !== 'code') return;
+    if (!this.sock) throw new Error('connector not started');
+    if (!phoneNumber) throw new Error('phoneNumber required for pair-code flow');
+    if (!this.sock.authState.creds.registered) {
+      await this.sock.waitForConnectionUpdate(async (u) => Boolean(u.qr));
     }
+    const code = await this.sock.requestPairingCode(phoneNumber);
+    this.emit('pairing-code', code);
   }
 
   async sendText(args: SendArgs): Promise<SendResult> {

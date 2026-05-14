@@ -1,0 +1,32 @@
+# Don't ship these into the build context
+node_modules
+**/node_modules
+.git
+.github
+dist
+**/dist
+.tsc-out
+**/.tsc-out
+*.tsbuildinfo
+**/*.tsbuildinfo
+.superpowers
+.env
+.env.*
+!.env.example
+
+# Editor / OS
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Docker volumes / runtime state (host-only)
+postgres-data
+redis-data
+baileys-auth
+media
+logs
+
+# Docs aren't needed at runtime
+docs
+README.md

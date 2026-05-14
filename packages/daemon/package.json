@@ -10,14 +10,18 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@hapi/boom": "~10.0.0",
+    "@whiskeysockets/baileys": "~6.7.0",
     "@yank/db": "workspace:*",
     "@yank/shared": "workspace:*",
     "drizzle-orm": "~0.36.0",
+    "qrcode": "~1.5.0",
     "tsx": "~4.19.0"
   },
   "devDependencies": {
     "@testcontainers/postgresql": "~10.13.0",
     "@testcontainers/redis": "~10.13.0",
+    "@types/qrcode": "~1.5.0",
     "ioredis": "~5.4.2",
     "postgres": "~3.4.0",
     "testcontainers": "~10.13.0",

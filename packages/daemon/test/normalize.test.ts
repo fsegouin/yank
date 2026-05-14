@@ -10,7 +10,7 @@ const baseMsg = {
 
 describe('normalizeBaileysMessage', () => {
   it('extracts text from conversation', () => {
-    const r = normalizeBaileysMessage(baseMsg as any);
+    const r = normalizeBaileysMessage(baseMsg as unknown as Parameters<typeof normalizeBaileysMessage>[0]);
     expect(r?.msg.text).toBe('hello world');
     expect(r?.msg.waMessageId).toBe('WA-A');
     expect(r?.chat.type).toBe('dm');
@@ -21,7 +21,7 @@ describe('normalizeBaileysMessage', () => {
     const r = normalizeBaileysMessage({
       ...baseMsg,
       message: { extendedTextMessage: { text: 'replying' } },
-    } as any);
+    } as unknown as Parameters<typeof normalizeBaileysMessage>[0]);
     expect(r?.msg.text).toBe('replying');
   });
 
@@ -29,7 +29,7 @@ describe('normalizeBaileysMessage', () => {
     const r = normalizeBaileysMessage({
       ...baseMsg,
       message: { imageMessage: { caption: 'pic' } },
-    } as any);
+    } as unknown as Parameters<typeof normalizeBaileysMessage>[0]);
     expect(r).toBeNull();
   });
 
@@ -42,7 +42,7 @@ describe('normalizeBaileysMessage', () => {
         fromMe: false,
         participant: '4477@s.whatsapp.net',
       },
-    } as any);
+    } as unknown as Parameters<typeof normalizeBaileysMessage>[0]);
     expect(r?.chat.type).toBe('group');
     expect(r?.msg.senderJid).toBe('4477@s.whatsapp.net');
   });
@@ -56,7 +56,7 @@ describe('normalizeBaileysMessage', () => {
           contextInfo: { stanzaId: 'WA-PARENT' },
         },
       },
-    } as any);
+    } as unknown as Parameters<typeof normalizeBaileysMessage>[0]);
     expect(r?.msg.quotedWaId).toBe('WA-PARENT');
   });
 });

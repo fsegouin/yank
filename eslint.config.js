@@ -11,6 +11,7 @@ export default tseslint.config(
       '**/coverage/**',
       '**/drizzle/**',
       'packages/web/dist/**',
+      'packages/web/.tsc-out/**',
     ],
   },
   js.configs.recommended,

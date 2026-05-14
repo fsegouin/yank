@@ -4,7 +4,7 @@ import {
   fetchLatestBaileysVersion,
   type WASocket,
 } from '@whiskeysockets/baileys';
-import { Boom } from '@hapi/boom';
+import type { Boom } from '@hapi/boom';
 import { TypedEmitter } from './typed-emitter.js';
 import type { Connector, ConnectorEvents, SendArgs, SendResult } from './connector.js';
 import { normalizeBaileysMessage } from './normalize.js';

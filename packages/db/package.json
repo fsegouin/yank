@@ -12,7 +12,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "drizzle:generate": "NODE_OPTIONS='--require tsx/cjs' drizzle-kit generate",
-    "drizzle:migrate": "tsx src/migrate.ts"
+    "drizzle:migrate": "node --env-file-if-exists=../../.env --import tsx src/migrate.ts"
   },
   "dependencies": {
     "@yank/shared": "workspace:*",

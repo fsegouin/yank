@@ -20,6 +20,7 @@
   "devDependencies": {
     "@testcontainers/postgresql": "~10.13.0",
     "@testcontainers/redis": "~10.13.0",
+    "postgres": "~3.4.0",
     "testcontainers": "~10.13.0",
     "typescript": "*",
     "vitest": "~2.1.0"

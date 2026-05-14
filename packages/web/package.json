@@ -19,6 +19,8 @@
   },
   "devDependencies": {
     "@playwright/test": "~1.48.0",
+    "@tanstack/router-devtools": "~1.81.0",
+    "@tanstack/router-vite-plugin": "~1.81.0",
     "@types/react": "~19.0.0",
     "@types/react-dom": "~19.0.0",
     "@vitejs/plugin-react": "~4.3.0",

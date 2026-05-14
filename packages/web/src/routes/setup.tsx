@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { api } from '../api.js';
 import { useYankEvents, type DaemonEvent } from '../sse.js';
 
@@ -172,3 +172,5 @@ export function Setup() {
     </div>
   );
 }
+
+export const Route = createFileRoute('/setup')({ component: Setup });

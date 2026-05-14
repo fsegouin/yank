@@ -13,12 +13,14 @@
     "format": "prettier --write .",
     "typecheck": "tsc -b packages/shared packages/db && pnpm -r run typecheck",
     "test": "vitest run --passWithNoTests",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "dev": "concurrently -n daemon,api,web -c magenta,green,blue --kill-others-on-fail \"pnpm --filter @yank/daemon dev\" \"pnpm --filter @yank/api dev\" \"pnpm --filter @yank/web dev\""
   },
   "devDependencies": {
     "@eslint/js": "^9.16.0",
     "@types/node": "22",
     "@vitest/coverage-v8": "^2.1.9",
+    "concurrently": "~9.1.0",
     "eslint": "~9.16.0",
     "globals": "^17.6.0",
     "prettier": "~3.4.0",

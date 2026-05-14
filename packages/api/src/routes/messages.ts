@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { and, asc, eq, gt } from 'drizzle-orm';
+import { and, desc, eq, lt } from 'drizzle-orm';
 import type { Db } from '@yank/db';
 import { chats, messages } from '@yank/db/schema';
 import { newId } from '@yank/shared';
@@ -13,7 +13,7 @@ export interface MessagesDeps {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function registerMessagesRoutes(app: FastifyInstance<any, any, any, any>, deps: MessagesDeps): void {
-  app.get<{ Params: { id: string }; Querystring: { after?: string; limit?: string } }>(
+  app.get<{ Params: { id: string }; Querystring: { before?: string; limit?: string } }>(
     '/api/chats/:id/messages',
     async (req, reply) => {
       const chat = await deps.db
@@ -23,25 +23,54 @@ export function registerMessagesRoutes(app: FastifyInstance<any, any, any, any>,
         .limit(1);
       if (!chat[0]) return reply.code(404).send({ error: 'not_found' });
 
-      const limit = Math.min(Number(req.query.limit ?? 100), 500);
-      const afterTs = req.query.after ? new Date(req.query.after) : null;
+      const limit = Math.min(Math.max(Number(req.query.limit ?? 50), 1), 200);
+      const beforeId =
+        typeof req.query.before === 'string' && req.query.before.length > 0
+          ? req.query.before
+          : null;
 
+      // For cursor pagination, find the `ts` of the `before` message and return
+      // rows strictly earlier. Cursor is the message id (UUIDv7, sortable by ts).
+      let beforeTs: Date | null = null;
+      if (beforeId) {
+        const cursorRow = await deps.db
+          .select({ ts: messages.ts })
+          .from(messages)
+          .where(and(eq(messages.userId, deps.userId), eq(messages.id, beforeId)))
+          .limit(1);
+        if (cursorRow[0]) beforeTs = cursorRow[0].ts;
+      }
+
+      const where = beforeTs
+        ? and(
+            eq(messages.userId, deps.userId),
+            eq(messages.chatId, req.params.id),
+            lt(messages.ts, beforeTs),
+          )
+        : and(eq(messages.userId, deps.userId), eq(messages.chatId, req.params.id));
+
+      // Fetch limit + 1 to detect whether there are more rows.
       const rows = await deps.db
         .select()
         .from(messages)
-        .where(
-          afterTs
-            ? and(
-                eq(messages.userId, deps.userId),
-                eq(messages.chatId, req.params.id),
-                gt(messages.ts, afterTs),
-              )
-            : and(eq(messages.userId, deps.userId), eq(messages.chatId, req.params.id)),
-        )
-        .orderBy(asc(messages.ts))
-        .limit(limit);
+        .where(where)
+        .orderBy(desc(messages.ts))
+        .limit(limit + 1);
 
-      return rows;
+      const hasMore = rows.length > limit;
+      const page = hasMore ? rows.slice(0, limit) : rows;
+      const nextCursor = hasMore ? page[page.length - 1]!.id : null;
+
+      return {
+        messages: page.map((r) => ({
+          ...r,
+          ts: r.ts ? new Date(r.ts).toISOString() : null,
+          editedAt: r.editedAt ? new Date(r.editedAt).toISOString() : null,
+          deletedAt: r.deletedAt ? new Date(r.deletedAt).toISOString() : null,
+          reactions: [],
+        })),
+        nextCursor,
+      };
     },
   );
 

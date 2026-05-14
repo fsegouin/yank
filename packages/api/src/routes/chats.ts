@@ -1,7 +1,14 @@
 import type { FastifyInstance } from 'fastify';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import type { Db } from '@yank/db';
-import { chats, chatAssignments, groupMembers, messages, readState } from '@yank/db/schema';
+import {
+  chats,
+  chatAssignments,
+  contacts,
+  groupMembers,
+  messages,
+  readState,
+} from '@yank/db/schema';
 
 export interface ChatsDeps {
   db: Db;
@@ -24,6 +31,9 @@ export function registerChatsRoutes(app: FastifyInstance<any, any, any, any>, de
         mutedUntil: chats.mutedUntil,
         pinned: chats.pinned,
         workspace: chatAssignments.workspace,
+        contactDisplayName: contacts.displayName,
+        contactPushName: contacts.pushName,
+        contactBusinessName: contacts.businessName,
         memberCount: sql<number>`(SELECT COUNT(*)::int FROM ${groupMembers} WHERE ${groupMembers.chatId} = ${chats.id})`,
         unreadCount: sql<number>`(
           SELECT COUNT(*)::int FROM ${messages}
@@ -39,15 +49,35 @@ export function registerChatsRoutes(app: FastifyInstance<any, any, any, any>, de
       })
       .from(chats)
       .leftJoin(chatAssignments, eq(chatAssignments.chatId, chats.id))
+      .leftJoin(
+        contacts,
+        and(eq(contacts.userId, chats.userId), eq(contacts.jid, chats.jid)),
+      )
       .where(eq(chats.userId, deps.userId))
       .orderBy(desc(chats.lastMessageAt));
 
-    return rows.map((r) => ({
-      ...r,
-      workspace: r.workspace ?? 'triage',
-      lastMessageAt: r.lastMessageAt ? new Date(r.lastMessageAt).toISOString() : null,
-      mutedUntil: r.mutedUntil ? new Date(r.mutedUntil).toISOString() : null,
-    }));
+    return rows.map((r) => {
+      const subject =
+        r.subject ??
+        (r.type === 'dm'
+          ? r.contactDisplayName ?? r.contactPushName ?? r.contactBusinessName ?? null
+          : null);
+      return {
+        id: r.id,
+        userId: r.userId,
+        jid: r.jid,
+        type: r.type,
+        subject,
+        lastMessageAt: r.lastMessageAt ? new Date(r.lastMessageAt).toISOString() : null,
+        lastMessagePreview: r.lastMessagePreview,
+        archived: r.archived,
+        mutedUntil: r.mutedUntil ? new Date(r.mutedUntil).toISOString() : null,
+        pinned: r.pinned,
+        workspace: r.workspace ?? 'triage',
+        memberCount: r.memberCount,
+        unreadCount: r.unreadCount,
+      };
+    });
   });
 
   app.get<{ Params: { id: string } }>('/api/chats/:id', async (req, reply) => {
@@ -64,6 +94,9 @@ export function registerChatsRoutes(app: FastifyInstance<any, any, any, any>, de
         mutedUntil: chats.mutedUntil,
         pinned: chats.pinned,
         workspace: chatAssignments.workspace,
+        contactDisplayName: contacts.displayName,
+        contactPushName: contacts.pushName,
+        contactBusinessName: contacts.businessName,
         memberCount: sql<number>`(SELECT COUNT(*)::int FROM ${groupMembers} WHERE ${groupMembers.chatId} = ${chats.id})`,
         unreadCount: sql<number>`(
           SELECT COUNT(*)::int FROM ${messages}
@@ -79,16 +112,34 @@ export function registerChatsRoutes(app: FastifyInstance<any, any, any, any>, de
       })
       .from(chats)
       .leftJoin(chatAssignments, eq(chatAssignments.chatId, chats.id))
+      .leftJoin(
+        contacts,
+        and(eq(contacts.userId, chats.userId), eq(contacts.jid, chats.jid)),
+      )
       .where(and(eq(chats.userId, deps.userId), eq(chats.id, req.params.id)))
       .limit(1);
 
     const r = rows[0];
     if (!r) return reply.code(404).send({ error: 'not_found' });
+    const subject =
+      r.subject ??
+      (r.type === 'dm'
+        ? r.contactDisplayName ?? r.contactPushName ?? r.contactBusinessName ?? null
+        : null);
     return {
-      ...r,
-      workspace: r.workspace ?? 'triage',
+      id: r.id,
+      userId: r.userId,
+      jid: r.jid,
+      type: r.type,
+      subject,
       lastMessageAt: r.lastMessageAt ? new Date(r.lastMessageAt).toISOString() : null,
+      lastMessagePreview: r.lastMessagePreview,
+      archived: r.archived,
       mutedUntil: r.mutedUntil ? new Date(r.mutedUntil).toISOString() : null,
+      pinned: r.pinned,
+      workspace: r.workspace ?? 'triage',
+      memberCount: r.memberCount,
+      unreadCount: r.unreadCount,
     };
   });
 }

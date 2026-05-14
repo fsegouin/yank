@@ -101,8 +101,11 @@ describe('M2 roundtrip', () => {
     const chatId = chats[0]!.id;
 
     const msgsRes = await fetch(`${baseUrl}/api/chats/${chatId}/messages`);
-    const msgs = (await msgsRes.json()) as Array<{ text: string; status: string }>;
-    expect(msgs.find((m) => m.text === 'incoming')).toBeTruthy();
+    const msgsBody = (await msgsRes.json()) as {
+      messages: Array<{ text: string; status: string }>;
+      nextCursor: string | null;
+    };
+    expect(msgsBody.messages.find((m) => m.text === 'incoming')).toBeTruthy();
   });
 
   it('outbound: POST /messages routes through daemon and flips status to sent', async () => {
@@ -119,13 +122,13 @@ describe('M2 roundtrip', () => {
 
     let final: { status?: string } = {};
     for (let i = 0; i < 30; i++) {
-      const msgs = (await (
+      const body = (await (
         await fetch(`${baseUrl}/api/chats/${chatId}/messages`)
-      ).json()) as Array<{
-        id: string;
-        status: string;
-      }>;
-      const row = msgs.find((m) => m.id === created.id);
+      ).json()) as {
+        messages: Array<{ id: string; status: string }>;
+        nextCursor: string | null;
+      };
+      const row = body.messages.find((m) => m.id === created.id);
       if (row?.status === 'sent') {
         final = row;
         break;

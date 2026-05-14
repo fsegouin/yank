@@ -165,7 +165,7 @@ packages:
   "description": "Pulls the slack out of WhatsApp.",
   "type": "module",
   "engines": {
-    "node": ">=22 <23"
+    "node": ">=22"
   },
   "packageManager": "pnpm@9.15.0",
   "scripts": {

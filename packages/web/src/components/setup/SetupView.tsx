@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
+import { useQuery } from '@tanstack/react-query';
 import { QRCodeSVG } from 'qrcode.react';
 import { useEventStream } from '../../lib/eventStream.js';
 import { apiFetch } from '../../lib/api.js';
@@ -13,11 +14,24 @@ interface Progress {
   total?: number;
 }
 
+interface SetupStatus {
+  status: 'unlinked' | 'pairing' | 'connected' | 'disconnected';
+  jid?: string | null;
+  phone?: string | null;
+  lastConnectedAt?: string | null;
+}
+
 export function SetupView() {
   const [stage, setStage] = useState<Stage>('qr');
   const [qr, setQr] = useState<string>('');
   const [progress, setProgress] = useState<Progress>({ synced: 0 });
+  const [hasKickedOff, setHasKickedOff] = useState(false);
   const navigate = useNavigate();
+
+  const statusQuery = useQuery({
+    queryKey: ['setup-status'],
+    queryFn: () => apiFetch<SetupStatus>('/api/setup/status'),
+  });
 
   useEventStream({
     onEvent: (evt) => {
@@ -31,8 +45,16 @@ export function SetupView() {
   });
 
   useEffect(() => {
-    void apiFetch<void>('/api/setup/link', { method: 'POST', body: { method: 'qr' } });
-  }, []);
+    if (!statusQuery.data) return;
+    if (statusQuery.data.status === 'connected' && stage === 'qr') {
+      setStage('connected');
+      return;
+    }
+    if (!hasKickedOff && statusQuery.data.status !== 'connected') {
+      setHasKickedOff(true);
+      void apiFetch<void>('/api/setup/link', { method: 'POST', body: { method: 'qr' } });
+    }
+  }, [statusQuery.data, stage, hasKickedOff]);
 
   return (
     <div className={styles.wrap}>
@@ -46,7 +68,16 @@ export function SetupView() {
         </p>
 
         <div className={styles.qrSlot} aria-live="polite">
-          {qr ? (
+          {statusQuery.isPending ? (
+            <div className={styles.qrPlaceholder}>Checking session…</div>
+          ) : statusQuery.data?.status === 'connected' ? (
+            <div className={styles.qrPlaceholder}>
+              Linked as{' '}
+              <span className="mono">
+                {statusQuery.data.phone ?? statusQuery.data.jid ?? 'unknown'}
+              </span>
+            </div>
+          ) : qr ? (
             <QRCodeSVG
               value={qr}
               size={232}

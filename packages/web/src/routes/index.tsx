@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from '@tanstack/react-router';
+import { createFileRoute, Link, redirect } from '@tanstack/react-router';
 import { z } from 'zod';
 import { ChatSchema } from '@yank/shared';
 import { useUiStore } from '../state/ui.js';
@@ -24,9 +24,15 @@ function EmptyState() {
   const workspace = useUiStore((s) => s.workspace);
   return (
     <main style={{ display: 'grid', placeItems: 'center', color: 'var(--fg-2)' }}>
-      <div style={{ textAlign: 'center' }}>
+      <div style={{ textAlign: 'center', maxWidth: 360 }}>
         <h2 style={{ fontSize: 16, color: 'var(--fg-0)' }}>No chats in {workspace}</h2>
-        <p style={{ fontSize: 13 }}>New chats appear in Triage first.</p>
+        <p style={{ fontSize: 13, lineHeight: 1.5 }}>
+          New WhatsApp messages will appear here automatically. If you haven't linked yet,{' '}
+          <Link to="/setup" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>
+            link your phone
+          </Link>
+          .
+        </p>
       </div>
     </main>
   );

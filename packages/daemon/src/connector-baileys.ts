@@ -35,7 +35,12 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
   private async connect(): Promise<void> {
     this.syncCompleted = false;
     const { version } = await fetchLatestBaileysVersion();
-    const sock = makeWASocket({ version, auth: this.auth.state, printQRInTerminal: false });
+    const sock = makeWASocket({
+      version,
+      auth: this.auth.state,
+      printQRInTerminal: false,
+      syncFullHistory: true,
+    });
     this.sock = sock;
 
     sock.ev.on('creds.update', this.auth.saveCreds);

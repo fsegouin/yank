@@ -1,0 +1,19 @@
+{
+  "name": "yank",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Pulls the slack out of WhatsApp.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {}
+}

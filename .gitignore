@@ -10,6 +10,7 @@ build/
 .next/
 .turbo/
 *.tsbuildinfo
+.tsc-out/
 
 # Env
 .env

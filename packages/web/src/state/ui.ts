@@ -1,7 +1,5 @@
 import { create } from 'zustand';
-
-// TODO(M3-D1): replace with `import type { Workspace } from '@yank/shared'` once C1 lands.
-type Workspace = 'work' | 'personal' | 'triage' | 'hidden';
+import type { Workspace } from '@yank/shared';
 
 // Workspace selection in the UI is one of work/personal/triage (not 'hidden').
 export type ActiveWorkspace = Exclude<Workspace, 'hidden'>;

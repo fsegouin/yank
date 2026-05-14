@@ -1,0 +1,45 @@
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--accent);
+  padding: 4px 10px 4px 6px;
+  border-radius: var(--radius-2);
+  border: 1px solid var(--border-0);
+  background: var(--bg-1);
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    background 0.1s,
+    border-color 0.1s;
+  cursor: pointer;
+}
+.link:hover {
+  background: var(--bg-2);
+  border-color: var(--border-1);
+}
+.avs {
+  display: flex;
+}
+.avSlot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-1);
+  margin-left: -6px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.link:hover .avSlot {
+  border-color: var(--bg-2);
+}
+.avSlot:first-child {
+  margin-left: 0;
+}
+.meta {
+  color: var(--fg-3);
+  font-weight: 400;
+}

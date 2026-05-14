@@ -1,0 +1,15 @@
+.glyph {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  color: var(--fg-3);
+  margin-left: 6px;
+}
+.glyph.read {
+  color: var(--c-online);
+}
+.glyph.failed {
+  color: var(--c-triage);
+  font-weight: 700;
+}

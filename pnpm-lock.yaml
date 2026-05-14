@@ -217,6 +217,9 @@ importers:
       '@yank/shared':
         specifier: workspace:*
         version: link:../shared
+      qrcode.react:
+        specifier: ~4.1.0
+        version: 4.1.0(react@19.0.6)
       react:
         specifier: ~19.0.0
         version: 19.0.6
@@ -3352,6 +3355,11 @@ packages:
   qified@0.10.1:
     resolution: {integrity: sha512-+Owyggi9IxT1ePKGafcI87ubSmxol6smwJ+RAHDQlx9+9cPwFWDiKFFCPuWhr9ignlGpZ9vDQLw67N4dcTVFEA==}
     engines: {node: '>=20'}
+
+  qrcode.react@4.1.0:
+    resolution: {integrity: sha512-uqXVIIVD/IPgWLYxbOczCNAQw80XCM/LulYDADF+g2xDsPj5OoRwSWtIS4jGyp295wyjKstfG1qIv/I2/rNWpQ==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0
 
   qrcode@1.5.4:
     resolution: {integrity: sha512-1ca71Zgiu6ORjHqFBDpnSMTR2ReToX4l1Au1VFLyVeBTFavzQnv5JxMFr3ukHVKpSrSA2MCk0lNJSykjUfz7Zg==}
@@ -6872,6 +6880,10 @@ snapshots:
   qified@0.10.1:
     dependencies:
       hookified: 2.2.0
+
+  qrcode.react@4.1.0(react@19.0.6):
+    dependencies:
+      react: 19.0.6
 
   qrcode@1.5.4:
     dependencies:

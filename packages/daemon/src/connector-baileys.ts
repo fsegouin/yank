@@ -17,6 +17,7 @@ export interface BaileysConnectorOpts {
 
 export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements Connector {
   private sock: WASocket | null = null;
+  private lastQr: string | null = null;
   private auth!: Awaited<ReturnType<typeof loadAuthState>>;
   private reconnectMs = 1000;
 
@@ -37,8 +38,12 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
     sock.ev.on('creds.update', this.auth.saveCreds);
 
     sock.ev.on('connection.update', (u) => {
-      if (u.qr) this.emit('qr', u.qr);
+      if (u.qr) {
+        this.lastQr = u.qr;
+        this.emit('qr', u.qr);
+      }
       if (u.connection === 'open') {
+        this.lastQr = null;
         const jid = sock.user?.id ?? '';
         this.emit('open', { jid, phone: jid.replace(/:\d+@.+$/, '') });
         this.reconnectMs = 1000;
@@ -80,7 +85,10 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
   }
 
   async requestPair(method: 'qr' | 'code', phoneNumber?: string): Promise<void> {
-    if (method !== 'code') return;
+    if (method === 'qr') {
+      if (this.lastQr) this.emit('qr', this.lastQr);
+      return;
+    }
     if (!this.sock) throw new Error('connector not started');
     if (!phoneNumber) throw new Error('phoneNumber required for pair-code flow');
     if (!this.sock.authState.creds.registered) {

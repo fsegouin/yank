@@ -45,21 +45,17 @@
   line-height: 1.55;
 }
 
-.code {
-  display: inline-flex;
-  gap: 8px;
-  margin-bottom: 18px;
-  font-family: var(--font-mono);
-  font-size: 26px;
-  font-weight: 700;
-  letter-spacing: 0;
+.qrSlot {
+  display: grid;
+  place-items: center;
+  padding: 18px 0;
+  min-height: 268px;
 }
 
-.chunk {
-  padding: 10px 14px;
-  border: 1px solid var(--border-1);
-  border-radius: var(--radius-2);
-  background: var(--bg-1);
+.qrPlaceholder {
+  color: var(--fg-2);
+  font-size: 13px;
+  font-family: var(--font-mono);
 }
 
 .progress {
@@ -119,28 +115,4 @@
 
 .cta:hover {
   filter: brightness(1.05);
-}
-
-.phoneInput {
-  width: 100%;
-  padding: 8px 10px;
-  border-radius: var(--radius-1);
-  border: 1px solid var(--border-1);
-  background: var(--bg-1);
-  color: var(--fg-0);
-  font-family: var(--font-mono);
-  font-size: 14px;
-  box-sizing: border-box;
-}
-
-.phoneInput:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-.error {
-  margin-top: 8px;
-  color: oklch(70% 0.2 25);
-  font-size: 13.5px;
-  text-align: left;
 }

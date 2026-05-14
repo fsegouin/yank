@@ -20,8 +20,11 @@ export function SetupView() {
 
   useEventStream({
     onEvent: (evt) => {
-      if (evt.type === 'qr') setCode(evt.data);
-      else if (evt.type === 'connected') setStage('syncing');
+      if (evt.type === 'pair-code') setCode(evt.code);
+      else if (evt.type === 'qr') {
+        // Pre-pairing QR data — opaque payload, not useful in the pair-code flow.
+        // We don't render it. (Future: render as actual QR image for QR-flow users.)
+      } else if (evt.type === 'connected') setStage('syncing');
       else if (evt.type === 'sync-progress')
         setProgress({ chats: evt.synced, messages: evt.total ?? 0 });
       else if (evt.type === 'sync-complete') setStage('done');

@@ -38,6 +38,9 @@ export function createSession(deps: SessionDeps): Session {
   deps.connector.on('qr', (data) => {
     void bus.publish({ type: 'qr', userId: deps.userId, data });
   });
+  deps.connector.on('pairing-code', (code) => {
+    void bus.publish({ type: 'pair-code', userId: deps.userId, code });
+  });
 
   return {
     async start() {

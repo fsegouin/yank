@@ -16,6 +16,7 @@ const connector = useFake
   : new BaileysConnector({
       authDir: process.env.YANK_BAILEYS_AUTH_DIR ?? '/app/baileys-auth',
       userId: env.YANK_USER_ID,
+      phoneNumber: env.YANK_PHONE_NUMBER,
     });
 
 const session = createSession({

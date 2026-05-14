@@ -9,6 +9,11 @@ export const QrEvent = Base.extend({
   data: z.string(),
 });
 
+export const PairCodeEvent = Base.extend({
+  type: z.literal('pair-code'),
+  code: z.string(),
+});
+
 export const ConnectedEvent = Base.extend({
   type: z.literal('connected'),
   jid: z.string(),
@@ -45,6 +50,7 @@ export const MessageStatusEvent = Base.extend({
 
 export const DaemonEventSchema = z.discriminatedUnion('type', [
   QrEvent,
+  PairCodeEvent,
   ConnectedEvent,
   DisconnectedEvent,
   SyncProgressEvent,

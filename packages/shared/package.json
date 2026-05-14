@@ -12,9 +12,11 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "pino-pretty": "~13.0.0",
     "typescript": "*"
   },
   "dependencies": {
+    "pino": "~9.5.0",
     "zod": "~3.23.0"
   }
 }

@@ -1,8 +1,9 @@
 import React from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import type { DaemonEvent } from '@yank/shared';
 import { api } from '../api.js';
-import { useYankEvents, type DaemonEvent } from '../sse.js';
+import { useEventStream } from '../lib/eventStream.js';
 
 type Stage = 'idle' | 'pair' | 'linking' | 'syncing' | 'done';
 
@@ -18,19 +19,21 @@ export function Setup() {
 
   const status = useQuery({ queryKey: ['setup-status'], queryFn: api.setupStatus });
 
-  useYankEvents((e: DaemonEvent) => {
-    if (e.type === 'qr') {
-      setQrData(e.data);
-      setStage('pair');
-    } else if (e.type === 'connected') {
-      setStage('syncing');
-      qc.invalidateQueries({ queryKey: ['setup-status'] });
-    } else if (e.type === 'sync-progress') {
-      setProgress({ synced: e.synced, total: e.total });
-    } else if (e.type === 'sync-complete') {
-      setStage('done');
-      qc.invalidateQueries({ queryKey: ['chats'] });
-    }
+  useEventStream({
+    onEvent: (e: DaemonEvent) => {
+      if (e.type === 'qr') {
+        setQrData(e.data);
+        setStage('pair');
+      } else if (e.type === 'connected') {
+        setStage('syncing');
+        qc.invalidateQueries({ queryKey: ['setup-status'] });
+      } else if (e.type === 'sync-progress') {
+        setProgress({ synced: e.synced, total: e.total });
+      } else if (e.type === 'sync-complete') {
+        setStage('done');
+        qc.invalidateQueries({ queryKey: ['chats'] });
+      }
+    },
   });
 
   async function startPair() {

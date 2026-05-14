@@ -1,0 +1,36 @@
+name: yank-local
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: yank-postgres-local
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-yank}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-yank}
+      POSTGRES_DB: ${POSTGRES_DB:-yank}
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - postgres-local-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER:-yank} -d $${POSTGRES_DB:-yank}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: yank-redis-local
+    ports:
+      - '127.0.0.1:6379:6379'
+    volumes:
+      - redis-local-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-local-data:
+  redis-local-data:

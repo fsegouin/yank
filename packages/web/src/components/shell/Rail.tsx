@@ -12,8 +12,7 @@ import {
 import { avatarGradient } from '../../utils/avatarGradient.js';
 import styles from './Rail.module.css';
 
-const RAIL_VIEWS = ['search', 'saved', 'directory', 'diagnostics', 'settings'] as const;
-type RailView = (typeof RAIL_VIEWS)[number];
+type RailView = 'search' | 'saved' | 'directory' | 'diagnostics' | 'settings';
 
 export function Rail() {
   const navigate = useNavigate();

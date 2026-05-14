@@ -1,5 +1,7 @@
 import Redis from 'ioredis';
+import { eq } from 'drizzle-orm';
 import { createDb, type Db } from '@yank/db';
+import { whatsappSessions } from '@yank/db/schema';
 import type { Logger } from '@yank/shared';
 import type { Connector } from './connector.js';
 import { createEventsBus } from './events-bus.js';
@@ -30,10 +32,44 @@ export function createSession(deps: SessionDeps): Session {
 
   let consumerStop: (() => Promise<void>) | null = null;
   deps.connector.on('open', ({ jid, phone }) => {
-    void bus.publish({ type: 'connected', userId: deps.userId, jid, phone });
+    void (async () => {
+      try {
+        await db
+          .insert(whatsappSessions)
+          .values({
+            userId: deps.userId,
+            jid,
+            phoneNumber: phone,
+            status: 'connected',
+            lastConnectedAt: new Date(),
+          })
+          .onConflictDoUpdate({
+            target: whatsappSessions.userId,
+            set: {
+              jid,
+              phoneNumber: phone,
+              status: 'connected',
+              lastConnectedAt: new Date(),
+            },
+          });
+      } catch (err) {
+        deps.log.error({ err }, 'failed to upsert whatsapp_sessions on open');
+      }
+      await bus.publish({ type: 'connected', userId: deps.userId, jid, phone });
+    })();
   });
   deps.connector.on('close', ({ reason }) => {
-    void bus.publish({ type: 'disconnected', userId: deps.userId, reason });
+    void (async () => {
+      try {
+        await db
+          .update(whatsappSessions)
+          .set({ status: 'disconnected' })
+          .where(eq(whatsappSessions.userId, deps.userId));
+      } catch (err) {
+        deps.log.error({ err }, 'failed to update whatsapp_sessions on close');
+      }
+      await bus.publish({ type: 'disconnected', userId: deps.userId, reason });
+    })();
   });
   deps.connector.on('qr', (data) => {
     void bus.publish({ type: 'qr', userId: deps.userId, data });

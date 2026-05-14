@@ -22,6 +22,7 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
   private reconnectMs = 1000;
   private syncIdleTimer: ReturnType<typeof setTimeout> | null = null;
   private syncCompleted = false;
+  private historySynced = 0;
 
   constructor(private opts: BaileysConnectorOpts) {
     super();
@@ -34,6 +35,7 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
 
   private async connect(): Promise<void> {
     this.syncCompleted = false;
+    this.historySynced = 0;
     const { version } = await fetchLatestBaileysVersion();
     const sock = makeWASocket({
       version,
@@ -76,7 +78,15 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
     });
 
     sock.ev.on('messaging-history.set', (h) => {
-      this.emit('history-progress', { synced: h.messages?.length ?? 0 });
+      // Ingest the history batch via the same path as live messages.
+      for (const m of h.messages ?? []) {
+        const r = normalizeBaileysMessage(m);
+        if (!r) continue;
+        this.emit('message', r.msg, r.chat, r.contact);
+      }
+      const batchSize = h.messages?.length ?? 0;
+      this.historySynced += batchSize;
+      this.emit('history-progress', { synced: this.historySynced });
       if (h.isLatest) {
         this.syncCompleted = true;
         if (this.syncIdleTimer) clearTimeout(this.syncIdleTimer);

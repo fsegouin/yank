@@ -1,0 +1,10 @@
+.shell {
+  display: grid;
+  grid-template-columns: var(--rail-w) var(--sidebar-w) 1fr;
+  height: 100vh;
+  background: var(--bg-0);
+  color: var(--fg-0);
+}
+.threadOpen {
+  grid-template-columns: var(--rail-w) var(--sidebar-w) 1fr var(--thread-w);
+}

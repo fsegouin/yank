@@ -8,3 +8,6 @@ export * from './group-members.js';
 export * from './messages.js';
 export * from './message-media.js';
 export * from './reactions.js';
+export * from './read-state.js';
+export * from './stars.js';
+export * from './directory-entries.js';

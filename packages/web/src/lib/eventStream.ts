@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { DaemonEventSchema, type DaemonEvent } from '@yank/shared';
-import type { Message } from '@yank/shared';
 import { queryKeys } from './queryKeys.js';
 
 const BACKOFF_INITIAL_MS = 1_000;
@@ -40,16 +39,9 @@ export function useEventStream(opts: UseEventStreamOptions = {}): void {
           qc.invalidateQueries({ queryKey: queryKeys.chats() });
           return;
         case 'status':
-          // Patch the optimistic row in any cached messages list by localId.
-          // Done with setQueriesData so the composer's in-flight UI doesn't
-          // flash empty during a refetch (the M2 behaviour we keep).
-          qc.setQueriesData<Message[]>({ queryKey: ['messages'] }, (prev) =>
-            prev?.map((m) =>
-              m.id === evt.localId
-                ? { ...m, status: evt.status, waMessageId: evt.waMessageId ?? m.waMessageId }
-                : m,
-            ),
-          );
+          // No client-side optimistic row yet — useSendMessage relies on refetch.
+          // Invalidate both messages (status changes) and chats (preview/lastMessageAt).
+          qc.invalidateQueries({ queryKey: ['messages'] });
           qc.invalidateQueries({ queryKey: queryKeys.chats() });
           return;
         case 'connected':

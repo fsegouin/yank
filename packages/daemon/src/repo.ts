@@ -17,18 +17,25 @@ export interface RepoCtx {
 }
 
 export async function upsertContact(ctx: RepoCtx, c: InboundContact): Promise<void> {
-  await ctx.db
-    .insert(contacts)
-    .values({
-      userId: ctx.userId,
-      jid: c.jid,
-      pushName: c.pushName,
-      businessName: c.businessName,
-    })
-    .onConflictDoUpdate({
+  const set: Record<string, string> = {};
+  if (c.pushName !== undefined) set.pushName = c.pushName;
+  if (c.businessName !== undefined) set.businessName = c.businessName;
+
+  const insert = ctx.db.insert(contacts).values({
+    userId: ctx.userId,
+    jid: c.jid,
+    pushName: c.pushName,
+    businessName: c.businessName,
+  });
+
+  if (Object.keys(set).length === 0) {
+    await insert.onConflictDoNothing();
+  } else {
+    await insert.onConflictDoUpdate({
       target: [contacts.userId, contacts.jid],
-      set: { pushName: c.pushName, businessName: c.businessName },
+      set,
     });
+  }
 }
 
 export async function upsertChat(ctx: RepoCtx, c: InboundChat): Promise<Chat> {

@@ -72,16 +72,31 @@ importers:
       drizzle-orm:
         specifier: ~0.36.0
         version: 0.36.4(@types/react@19.0.14)(postgres@3.4.9)(react@19.0.6)
-      ioredis:
-        specifier: ~5.4.0
-        version: 5.4.2
       tsx:
         specifier: ~4.19.0
         version: 4.19.4
     devDependencies:
+      '@testcontainers/postgresql':
+        specifier: ~10.13.0
+        version: 10.13.2
+      '@testcontainers/redis':
+        specifier: ~10.13.0
+        version: 10.13.2
+      ioredis:
+        specifier: ~5.4.2
+        version: 5.4.2
+      postgres:
+        specifier: ~3.4.0
+        version: 3.4.9
+      testcontainers:
+        specifier: ~10.13.0
+        version: 10.13.2
       typescript:
         specifier: '*'
         version: 5.6.3
+      vitest:
+        specifier: ~2.1.0
+        version: 2.1.9(@types/node@22.19.19)
 
   packages/db:
     dependencies:
@@ -1235,6 +1250,9 @@ packages:
 
   '@testcontainers/postgresql@10.13.2':
     resolution: {integrity: sha512-xd3u/rL8FrOBHFMu1aU+2d4sqPz9ffEb19ITtopT/tyBZWW9qCsgR6wSg0r2BJUd+2hT4UR5nR5cymi+ROkehw==}
+
+  '@testcontainers/redis@10.13.2':
+    resolution: {integrity: sha512-SFNdO/aGkJlgyS04pXPTGiC8lJqR7aw6xdhgB5NXVnEPoic+y6SozxY4Fa7DeXxyYftF/xYW7D0iDobpMik6Vg==}
 
   '@types/babel__core@7.20.5':
     resolution: {integrity: sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==}
@@ -3490,6 +3508,15 @@ snapshots:
     optional: true
 
   '@testcontainers/postgresql@10.13.2':
+    dependencies:
+      testcontainers: 10.13.2
+    transitivePeerDependencies:
+      - bare-abort-controller
+      - bare-buffer
+      - react-native-b4a
+      - supports-color
+
+  '@testcontainers/redis@10.13.2':
     dependencies:
       testcontainers: 10.13.2
     transitivePeerDependencies:

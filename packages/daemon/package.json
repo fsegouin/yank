@@ -13,10 +13,15 @@
     "@yank/db": "workspace:*",
     "@yank/shared": "workspace:*",
     "drizzle-orm": "~0.36.0",
-    "ioredis": "~5.4.0",
     "tsx": "~4.19.0"
   },
   "devDependencies": {
-    "typescript": "*"
+    "@testcontainers/postgresql": "~10.13.0",
+    "@testcontainers/redis": "~10.13.0",
+    "ioredis": "~5.4.2",
+    "postgres": "~3.4.0",
+    "testcontainers": "~10.13.0",
+    "typescript": "*",
+    "vitest": "~2.1.0"
   }
 }

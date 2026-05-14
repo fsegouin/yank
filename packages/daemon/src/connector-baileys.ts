@@ -20,6 +20,8 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
   private lastQr: string | null = null;
   private auth!: Awaited<ReturnType<typeof loadAuthState>>;
   private reconnectMs = 1000;
+  private syncIdleTimer: ReturnType<typeof setTimeout> | null = null;
+  private syncCompleted = false;
 
   constructor(private opts: BaileysConnectorOpts) {
     super();
@@ -31,6 +33,7 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
   }
 
   private async connect(): Promise<void> {
+    this.syncCompleted = false;
     const { version } = await fetchLatestBaileysVersion();
     const sock = makeWASocket({ version, auth: this.auth.state, printQRInTerminal: false });
     this.sock = sock;
@@ -44,11 +47,19 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
       }
       if (u.connection === 'open') {
         this.lastQr = null;
+        // Safety net: if no messaging-history.set events fire within 30s, mark sync complete.
+        if (this.syncIdleTimer) clearTimeout(this.syncIdleTimer);
+        this.syncIdleTimer = setTimeout(() => {
+          if (this.syncCompleted) return;
+          this.syncCompleted = true;
+          this.emit('history-complete');
+        }, 30_000);
         const jid = sock.user?.id ?? '';
         this.emit('open', { jid, phone: jid.replace(/:\d+@.+$/, '') });
         this.reconnectMs = 1000;
       }
       if (u.connection === 'close') {
+        if (this.syncIdleTimer) clearTimeout(this.syncIdleTimer);
         const code = (u.lastDisconnect?.error as Boom)?.output?.statusCode;
         const willReconnect = code !== DisconnectReason.loggedOut;
         this.emit('close', { reason: String(code), willReconnect });
@@ -61,7 +72,19 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
 
     sock.ev.on('messaging-history.set', (h) => {
       this.emit('history-progress', { synced: h.messages?.length ?? 0 });
-      if (h.isLatest) this.emit('history-complete');
+      if (h.isLatest) {
+        this.syncCompleted = true;
+        if (this.syncIdleTimer) clearTimeout(this.syncIdleTimer);
+        this.emit('history-complete');
+        return;
+      }
+      // Reset the idle timer; emit history-complete if no further history events for 10s.
+      if (this.syncIdleTimer) clearTimeout(this.syncIdleTimer);
+      this.syncIdleTimer = setTimeout(() => {
+        if (this.syncCompleted) return;
+        this.syncCompleted = true;
+        this.emit('history-complete');
+      }, 10_000);
     });
 
     sock.ev.on('messages.upsert', ({ messages: msgs }) => {

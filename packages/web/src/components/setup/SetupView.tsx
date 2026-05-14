@@ -75,13 +75,13 @@ export function SetupView() {
           <Step label="Done" done={stage === 'done'} />
         </div>
 
-        {stage === 'done' && (
+        {stage !== 'qr' && (
           <button
             type="button"
             className={styles.cta}
-            onClick={() => void navigate({ to: '/triage' })}
+            onClick={() => void navigate({ to: '/' })}
           >
-            Open Triage →
+            {stage === 'done' ? 'Open Yank →' : 'Continue to inbox →'}
           </button>
         )}
       </div>

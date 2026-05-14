@@ -30,6 +30,10 @@ export class FakeConnector extends TypedEmitter<ConnectorEvents> implements Conn
 
   async close(): Promise<void> {}
 
+  isRegistered(): boolean {
+    return false;
+  }
+
   /* Test helpers */
   simulatePair(info: { jid: string; phone: string }): void {
     this.emit('open', info);

@@ -152,4 +152,8 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
   async close(): Promise<void> {
     this.sock?.end(undefined);
   }
+
+  isRegistered(): boolean {
+    return Boolean(this.auth?.state?.creds?.registered);
+  }
 }

@@ -81,6 +81,29 @@ export function createSession(deps: SessionDeps): Session {
   return {
     async start() {
       await deps.connector.start();
+
+      // If the device isn't registered (fresh state / creds wiped), reset any stale
+      // 'connected' row so the UI shows the QR instead of skipping setup.
+      if (!deps.connector.isRegistered()) {
+        try {
+          await db
+            .insert(whatsappSessions)
+            .values({
+              userId: deps.userId,
+              jid: '',
+              phoneNumber: null,
+              status: 'unlinked',
+              lastConnectedAt: null,
+            })
+            .onConflictDoUpdate({
+              target: whatsappSessions.userId,
+              set: { status: 'unlinked', jid: '', phoneNumber: null, lastConnectedAt: null },
+            });
+        } catch (err) {
+          deps.log.error({ err }, 'failed to reset whatsapp_sessions on fresh start');
+        }
+      }
+
       const { stop } = startCommandsConsumer({
         redis,
         userId: deps.userId,

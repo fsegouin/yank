@@ -56,4 +56,6 @@ export interface Connector extends TypedEventEmitter<ConnectorEvents> {
   requestPair(method: 'qr' | 'code', phoneNumber?: string): Promise<void>;
   sendText(args: SendArgs): Promise<SendResult>;
   close(): Promise<void>;
+  /** Returns true when the connector has loaded auth state and the device is registered with WA. */
+  isRegistered(): boolean;
 }

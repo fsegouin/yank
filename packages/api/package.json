@@ -5,8 +5,8 @@
   "type": "module",
   "main": "./src/index.ts",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "start": "tsx src/index.ts",
+    "dev": "node --env-file-if-exists=../../.env --watch --import tsx src/index.ts",
+    "start": "node --env-file-if-exists=../../.env --import tsx src/index.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -18,6 +18,10 @@
     "tsx": "~4.19.0"
   },
   "devDependencies": {
-    "typescript": "*"
+    "@testcontainers/postgresql": "~10.13.0",
+    "@testcontainers/redis": "~10.13.0",
+    "testcontainers": "~10.13.0",
+    "typescript": "*",
+    "vitest": "~2.1.0"
   }
 }

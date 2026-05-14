@@ -1,0 +1,136 @@
+:root {
+  /* Type */
+  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Density (overridden by [data-density]) */
+  --row-h: 32px;
+  --msg-gap: 18px;
+  --pane-pad: 16px;
+  --fs-body: 14px;
+  --fs-meta: 11.5px;
+  --fs-sidebar: 13.5px;
+  --fs-tiny: 11px;
+
+  /* Workspace identity (saturated for dark) */
+  --c-work: oklch(72% 0.13 250);
+  --c-work-soft: oklch(28% 0.08 250);
+  --c-personal: oklch(78% 0.13 60);
+  --c-personal-soft: oklch(28% 0.08 60);
+  --c-triage: oklch(72% 0.18 22);
+  --c-triage-soft: oklch(28% 0.10 22);
+
+  --c-saved: oklch(78% 0.14 90);
+  --c-online: oklch(72% 0.18 150);
+  --c-warn: oklch(78% 0.16 80);
+
+  /* Avatar gradient palette (deterministic, used everywhere) */
+  --g-1: linear-gradient(135deg, #f59e0b, #ef4444);
+  --g-2: linear-gradient(135deg, #8b5cf6, #ec4899);
+  --g-3: linear-gradient(135deg, #10b981, #06b6d4);
+  --g-4: linear-gradient(135deg, #6366f1, #06b6d4);
+  --g-5: linear-gradient(135deg, #f97316, #eab308);
+  --g-6: linear-gradient(135deg, #2563eb, #7c3aed);
+  --g-7: linear-gradient(135deg, #0ea5e9, #22c55e);
+  --g-8: linear-gradient(135deg, #db2777, #f97316);
+
+  /* Accent (sent/active) — defaults to work cool */
+  --accent: var(--c-work);
+  --accent-soft: var(--c-work-soft);
+
+  --radius-1: 4px;
+  --radius-2: 6px;
+  --radius-3: 10px;
+
+  --rail-w: 64px;
+  --sidebar-w: 268px;
+  --thread-w: 400px;
+}
+
+:root,
+[data-theme='dark'] {
+  --bg-0: oklch(15.5% 0.006 250);
+  --bg-1: oklch(18.5% 0.007 250);
+  --bg-2: oklch(22% 0.008 250);
+  --bg-3: oklch(26% 0.009 250);
+  --bg-rail: oklch(12% 0.005 250);
+  --bg-hover: oklch(22% 0.008 250);
+  --bg-active: oklch(26% 0.01 250);
+  --bg-inverse: oklch(96% 0.003 250);
+
+  --fg-0: oklch(96% 0.003 250);
+  --fg-1: oklch(80% 0.005 250);
+  --fg-2: oklch(60% 0.007 250);
+  --fg-3: oklch(44% 0.008 250);
+  --fg-inverse: oklch(18% 0.005 250);
+
+  --border-0: oklch(24% 0.008 250);
+  --border-1: oklch(30% 0.01 250);
+  --border-strong: oklch(40% 0.012 250);
+
+  --shadow-1: 0 1px 0 oklch(0% 0 0 / 0.3), 0 1px 2px oklch(0% 0 0 / 0.25);
+  --shadow-2: 0 4px 12px oklch(0% 0 0 / 0.35), 0 1px 3px oklch(0% 0 0 / 0.25);
+  --shadow-3: 0 16px 40px oklch(0% 0 0 / 0.55), 0 4px 12px oklch(0% 0 0 / 0.4);
+}
+
+[data-theme='light'] {
+  --bg-0: oklch(99% 0.003 250);
+  --bg-1: oklch(97.2% 0.004 250);
+  --bg-2: oklch(94.5% 0.005 250);
+  --bg-3: oklch(91% 0.006 250);
+  --bg-rail: oklch(94% 0.005 250);
+  --bg-hover: oklch(95% 0.006 250);
+  --bg-active: oklch(92.5% 0.008 250);
+  --bg-inverse: oklch(18% 0.005 250);
+
+  --fg-0: oklch(18% 0.005 250);
+  --fg-1: oklch(36% 0.008 250);
+  --fg-2: oklch(52% 0.008 250);
+  --fg-3: oklch(66% 0.008 250);
+  --fg-inverse: oklch(98% 0.002 250);
+
+  --border-0: oklch(92% 0.006 250);
+  --border-1: oklch(88% 0.008 250);
+  --border-strong: oklch(78% 0.01 250);
+
+  --c-work: oklch(50% 0.13 250);
+  --c-work-soft: oklch(94% 0.04 250);
+  --c-personal: oklch(58% 0.14 60);
+  --c-personal-soft: oklch(94% 0.05 60);
+  --c-triage: oklch(55% 0.18 22);
+  --c-triage-soft: oklch(94% 0.05 22);
+
+  --shadow-1: 0 1px 0 oklch(0% 0 0 / 0.04), 0 1px 2px oklch(0% 0 0 / 0.04);
+  --shadow-2: 0 4px 12px oklch(0% 0 0 / 0.06), 0 1px 3px oklch(0% 0 0 / 0.05);
+  --shadow-3: 0 16px 40px oklch(0% 0 0 / 0.18), 0 4px 12px oklch(0% 0 0 / 0.10);
+}
+
+[data-density='compact'] {
+  --row-h: 28px;
+  --msg-gap: 12px;
+  --pane-pad: 12px;
+  --fs-body: 13px;
+  --fs-sidebar: 12.5px;
+  --fs-meta: 11px;
+}
+[data-density='roomy'] {
+  --row-h: 36px;
+  --msg-gap: 22px;
+  --pane-pad: 20px;
+  --fs-body: 15px;
+  --fs-sidebar: 14px;
+  --fs-meta: 12px;
+}
+
+[data-accent='personal'] { --accent: var(--c-personal); --accent-soft: var(--c-personal-soft); }
+[data-accent='triage']   { --accent: var(--c-triage);   --accent-soft: var(--c-triage-soft); }
+[data-accent='mono']     { --accent: var(--fg-0);       --accent-soft: var(--bg-3); }
+
+.av-g1 { background: var(--g-1); color: white; }
+.av-g2 { background: var(--g-2); color: white; }
+.av-g3 { background: var(--g-3); color: white; }
+.av-g4 { background: var(--g-4); color: white; }
+.av-g5 { background: var(--g-5); color: white; }
+.av-g6 { background: var(--g-6); color: white; }
+.av-g7 { background: var(--g-7); color: white; }
+.av-g8 { background: var(--g-8); color: white; }

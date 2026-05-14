@@ -1,0 +1,122 @@
+.wrap {
+  display: grid;
+  place-items: center;
+  height: 100vh;
+  background: var(--bg-1);
+}
+
+.card {
+  background: var(--bg-0);
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius-3);
+  box-shadow: var(--shadow-2);
+  padding: 40px 44px;
+  width: min(580px, 92vw);
+  text-align: center;
+}
+
+.logo {
+  width: 48px;
+  height: 48px;
+  background: var(--g-6);
+  color: white;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 19px;
+  letter-spacing: -0.05em;
+  margin: 0 auto 18px;
+  box-shadow: 0 4px 16px oklch(0% 0 0 / 0.3);
+}
+
+.heading {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.lede {
+  color: var(--fg-2);
+  font-size: 13.5px;
+  margin-bottom: 24px;
+  line-height: 1.55;
+}
+
+.code {
+  display: inline-flex;
+  gap: 8px;
+  margin-bottom: 18px;
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.chunk {
+  padding: 10px 14px;
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius-2);
+  background: var(--bg-1);
+}
+
+.progress {
+  text-align: left;
+  border-top: 1px solid var(--border-0);
+  margin-top: 24px;
+  padding-top: 22px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 0;
+  font-size: 13px;
+}
+
+.check {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-strong);
+  display: grid;
+  place-items: center;
+  color: var(--fg-inverse);
+  flex-shrink: 0;
+}
+
+.row.done .check {
+  background: var(--c-online);
+  border-color: var(--c-online);
+  color: white;
+}
+
+.row.active .check {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.meta {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--fg-3);
+}
+
+.cta {
+  margin-top: 24px;
+  background: var(--accent);
+  color: white;
+  border: 0;
+  padding: 10px 18px;
+  border-radius: var(--radius-2);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.cta:hover {
+  filter: brightness(1.05);
+}

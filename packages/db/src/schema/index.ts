@@ -5,3 +5,6 @@ export * from './contacts.js';
 export * from './chats.js';
 export * from './chat-assignments.js';
 export * from './group-members.js';
+export * from './messages.js';
+export * from './message-media.js';
+export * from './reactions.js';

@@ -8,7 +8,8 @@ export interface ChatsDeps {
   userId: string;
 }
 
-export function registerChatsRoutes(app: FastifyInstance, deps: ChatsDeps): void {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function registerChatsRoutes(app: FastifyInstance<any, any, any, any>, deps: ChatsDeps): void {
   app.get('/api/chats', async () => {
     const rows = await deps.db
       .select({

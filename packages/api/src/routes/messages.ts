@@ -11,7 +11,8 @@ export interface MessagesDeps {
   commands: CommandsBus;
 }
 
-export function registerMessagesRoutes(app: FastifyInstance, deps: MessagesDeps): void {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function registerMessagesRoutes(app: FastifyInstance<any, any, any, any>, deps: MessagesDeps): void {
   app.get<{ Params: { id: string }; Querystring: { after?: string; limit?: string } }>(
     '/api/chats/:id/messages',
     async (req, reply) => {

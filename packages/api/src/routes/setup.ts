@@ -10,7 +10,8 @@ export interface SetupDeps {
   commands: CommandsBus;
 }
 
-export function registerSetupRoutes(app: FastifyInstance, deps: SetupDeps): void {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function registerSetupRoutes(app: FastifyInstance<any, any, any, any>, deps: SetupDeps): void {
   app.post('/api/setup/link', async (req) => {
     const body = (req.body ?? {}) as { method?: 'qr' | 'code' };
     const method = body.method ?? 'code';

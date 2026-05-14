@@ -1,0 +1,26 @@
+import { z } from 'zod';
+
+const EnvSchema = z.object({
+  DATABASE_URL: z
+    .string()
+    .url()
+    .refine((v) => v.startsWith('postgres://') || v.startsWith('postgresql://'), {
+      message: 'DATABASE_URL must be a postgres URL',
+    }),
+  REDIS_URL: z.string().url().startsWith('redis://'),
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+});
+
+export type Env = z.infer<typeof EnvSchema>;
+
+export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
+  const parsed = EnvSchema.safeParse(source);
+  if (!parsed.success) {
+    const issues = parsed.error.issues
+      .map((i) => `  - ${i.path.join('.') || '(root)'}: ${i.message}`)
+      .join('\n');
+    throw new Error(`Invalid environment:\n${issues}`);
+  }
+  return parsed.data;
+}

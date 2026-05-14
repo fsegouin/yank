@@ -39,23 +39,26 @@ export async function upsertContact(ctx: RepoCtx, c: InboundContact): Promise<vo
 }
 
 export async function upsertChat(ctx: RepoCtx, c: InboundChat): Promise<Chat> {
-  const existing = await ctx.db
-    .select()
-    .from(chats)
-    .where(and(eq(chats.userId, ctx.userId), eq(chats.jid, c.jid)))
-    .limit(1);
-  if (existing[0]) return existing[0];
-
   const id = newId();
-  const inserted = await ctx.db
+  const rows = await ctx.db
     .insert(chats)
     .values({ id, userId: ctx.userId, jid: c.jid, type: c.type, subject: c.subject })
+    .onConflictDoUpdate({
+      target: [chats.userId, chats.jid],
+      // No-op set just to make Postgres return the existing row via RETURNING.
+      set: { jid: c.jid },
+    })
     .returning();
+
+  const row = rows[0]!;
+
+  // chat_assignments is keyed by chat_id; create one on first insert, ignore otherwise.
   await ctx.db
     .insert(chatAssignments)
-    .values({ chatId: id, workspace: 'triage' })
+    .values({ chatId: row.id, workspace: 'triage' })
     .onConflictDoNothing();
-  return inserted[0]!;
+
+  return row;
 }
 
 export interface InsertInboundResult {

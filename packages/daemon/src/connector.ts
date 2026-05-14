@@ -1,6 +1,6 @@
 import type { TypedEventEmitter } from './typed-emitter.js';
 
-export type ChatType = 'dm' | 'group';
+export type ChatType = 'dm' | 'group' | 'community' | 'newsletter';
 
 export interface InboundContact {
   jid: string;
@@ -37,6 +37,7 @@ export interface ConnectorEvents {
   'history-progress': (info: { synced: number; total?: number }) => void;
   'history-complete': () => void;
   message: (msg: InboundMessage, chat: InboundChat, contact: InboundContact) => void;
+  chat: (chat: InboundChat) => void;
   status: (info: OutboundStatus) => void;
 }
 

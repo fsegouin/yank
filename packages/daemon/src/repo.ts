@@ -40,13 +40,19 @@ export async function upsertContact(ctx: RepoCtx, c: InboundContact): Promise<vo
 
 export async function upsertChat(ctx: RepoCtx, c: InboundChat): Promise<Chat> {
   const id = newId();
+  // No-op set on { jid } so Postgres returns the existing row via RETURNING.
+  // Only refresh subject when the caller actually carries one — message-driven
+  // upserts (no subject) must not clobber a subject set by chat-metadata events.
+  const setOnConflict: Record<string, string> = { jid: c.jid };
+  if (c.subject !== undefined && c.subject !== null && c.subject.length > 0) {
+    setOnConflict.subject = c.subject;
+  }
   const rows = await ctx.db
     .insert(chats)
     .values({ id, userId: ctx.userId, jid: c.jid, type: c.type, subject: c.subject })
     .onConflictDoUpdate({
       target: [chats.userId, chats.jid],
-      // No-op set just to make Postgres return the existing row via RETURNING.
-      set: { jid: c.jid },
+      set: setOnConflict,
     })
     .returning();
 

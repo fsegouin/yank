@@ -120,6 +120,41 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
         else if (s === 4) this.emit('status', { waMessageId: id, status: 'read' });
       }
     });
+
+    sock.ev.on('chats.upsert', (chats) => {
+      for (const c of chats) {
+        if (!c.id) continue;
+        const meta = c as { name?: string | null; subject?: string | null };
+        this.emit('chat', {
+          jid: c.id,
+          type: c.id.endsWith('@g.us')
+            ? 'group'
+            : c.id.endsWith('@newsletter')
+              ? 'newsletter'
+              : 'dm',
+          subject: meta.name ?? meta.subject ?? undefined,
+        });
+      }
+    });
+
+    sock.ev.on('chats.update', (updates) => {
+      for (const u of updates) {
+        if (!u.id) continue;
+        // chats.update is partial — only emit if there's a name/subject change.
+        const meta = u as { name?: string | null; subject?: string | null };
+        const subject = meta.name ?? meta.subject;
+        if (subject == null) continue;
+        this.emit('chat', {
+          jid: u.id,
+          type: u.id.endsWith('@g.us')
+            ? 'group'
+            : u.id.endsWith('@newsletter')
+              ? 'newsletter'
+              : 'dm',
+          subject,
+        });
+      }
+    });
   }
 
   async requestPair(method: 'qr' | 'code', phoneNumber?: string): Promise<void> {

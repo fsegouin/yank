@@ -32,6 +32,16 @@ export function attachInbound({ db, userId, connector, bus }: AttachInboundOpts)
     })();
   });
 
+  connector.on('chat', (chat) => {
+    void (async () => {
+      try {
+        await upsertChat(ctx, chat);
+      } catch (err) {
+        console.error('[ingest] failed to upsert chat metadata', err);
+      }
+    })();
+  });
+
   connector.on('history-progress', ({ synced, total }) => {
     void bus.publish({ type: 'sync-progress', userId, synced, total });
   });

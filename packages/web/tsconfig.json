@@ -5,8 +5,9 @@
     "jsx": "react-jsx",
     "useDefineForClassFields": true,
     "moduleResolution": "Bundler",
-    "noEmit": true
+    "noEmit": true,
+    "types": ["vite/client", "vitest/globals"]
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "test/**/*"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

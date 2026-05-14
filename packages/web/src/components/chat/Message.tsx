@@ -5,6 +5,9 @@ import { Reactions } from './Reactions.js';
 import { StatusGlyph } from './StatusGlyph.js';
 import { Quote } from './Quote.js';
 import { ThreadLink } from './ThreadLink.js';
+import { MediaImage } from './MediaImage.js';
+import { DocCard } from './DocCard.js';
+import { VoiceNote } from './VoiceNote.js';
 import { EmojiIcon, ThreadIcon, StarIcon, MoreIcon } from '../icons/index.js';
 import styles from './Message.module.css';
 
@@ -69,6 +72,11 @@ export function MessageRow({
           />
         )}
         <MessageText text={message.text} />
+        {message.media && message.kind === 'image' && <MediaImage media={message.media} />}
+        {message.media && message.kind === 'document' && (
+          <DocCard media={message.media} name={message.text ?? 'file'} />
+        )}
+        {message.media && message.kind === 'audio' && <VoiceNote media={message.media} />}
         {message.reactions.length > 0 && (
           <Reactions
             reactions={message.reactions}

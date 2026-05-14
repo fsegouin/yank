@@ -1,0 +1,33 @@
+.doc {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 6px 0 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-0);
+  border-radius: var(--radius-2);
+  background: var(--bg-1);
+  max-width: 340px;
+}
+.ext {
+  width: 32px;
+  height: 40px;
+  border-radius: 3px;
+  background: var(--bg-3);
+  color: var(--fg-1);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+}
+.name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-0);
+}
+.size {
+  font-size: 11px;
+  color: var(--fg-2);
+  font-family: var(--font-mono);
+}

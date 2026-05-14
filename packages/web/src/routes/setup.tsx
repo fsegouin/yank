@@ -2,8 +2,15 @@ import React from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import type { DaemonEvent } from '@yank/shared';
-import { api } from '../api.js';
+import { apiFetch } from '../lib/api.js';
 import { useEventStream } from '../lib/eventStream.js';
+
+interface SetupStatus {
+  status: 'unlinked' | 'pairing' | 'connected' | 'disconnected';
+  jid?: string | null;
+  phone?: string | null;
+  lastConnectedAt?: string | null;
+}
 
 type Stage = 'idle' | 'pair' | 'linking' | 'syncing' | 'done';
 
@@ -17,7 +24,10 @@ export function Setup() {
     synced: 0,
   });
 
-  const status = useQuery({ queryKey: ['setup-status'], queryFn: api.setupStatus });
+  const status = useQuery({
+    queryKey: ['setup-status'],
+    queryFn: () => apiFetch<SetupStatus>('/api/setup/status'),
+  });
 
   useEventStream({
     onEvent: (e: DaemonEvent) => {
@@ -38,7 +48,10 @@ export function Setup() {
 
   async function startPair() {
     setStage('pair');
-    const r = await api.setupLink('code');
+    const r = await apiFetch<{ ok: true; method: 'qr' | 'code' }>('/api/setup/link', {
+      method: 'POST',
+      body: { method: 'code' },
+    });
     if (r.method === 'code') setPairingCode('FX3-M9A-K2P');
   }
 

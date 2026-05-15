@@ -96,6 +96,9 @@ export function MessageRow({
           />
         )}
         <MessageText text={message.text} />
+        {message.editedAt && (
+          <span className={styles.editedSuffix}>(edited)</span>
+        )}
         {message.media && message.kind === 'image' && (
           <MediaImage messageId={message.id} media={message.media} />
         )}

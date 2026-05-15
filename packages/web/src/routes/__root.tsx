@@ -9,6 +9,7 @@ import { Rail } from '../components/shell/Rail.js';
 import { Sidebar } from '../components/shell/Sidebar.js';
 import { CommandPalette } from '../components/palette/CommandPalette.js';
 import { UndoToast } from '../components/primitives/UndoToast.js';
+import { DegradationBanner } from '../components/shell/DegradationBanner.js';
 import styles from './__root.module.css';
 
 export const Route = createRootRoute({
@@ -36,15 +37,18 @@ function RootLayout() {
   const paletteMode = useUiStore((s) => s.paletteMode);
 
   return (
-    <div
-      className={styles.shell + (openThreadId ? ' ' + styles.threadOpen : '')}
-      data-thread-open={openThreadId ? 'true' : 'false'}
-    >
-      <Rail />
-      <Sidebar />
-      <Outlet />
-      {paletteOpen && <CommandPalette mode={paletteMode ?? undefined} />}
-      <UndoToast />
-    </div>
+    <>
+      <DegradationBanner />
+      <div
+        className={styles.shell + (openThreadId ? ' ' + styles.threadOpen : '')}
+        data-thread-open={openThreadId ? 'true' : 'false'}
+      >
+        <Rail />
+        <Sidebar />
+        <Outlet />
+        {paletteOpen && <CommandPalette mode={paletteMode ?? undefined} />}
+        <UndoToast />
+      </div>
+    </>
   );
 }

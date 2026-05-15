@@ -110,6 +110,7 @@ export interface SendArgs {
   chatJid: string;
   text: string;
   quotedWaId?: string;
+  mentionedJid?: string[];
 }
 
 export interface SendResult {

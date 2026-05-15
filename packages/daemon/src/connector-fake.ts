@@ -16,10 +16,10 @@ import type {
 } from './connector.js';
 
 export class FakeConnector extends TypedEmitter<ConnectorEvents> implements Connector {
-  sent: Array<{ chatJid: string; text: string; quotedWaId?: string }> = [];
+  sent: Array<{ chatJid: string; text: string; quotedWaId?: string; mentionedJid?: string[] }> = [];
   editCalls: Array<{ jid: string; waMessageId: string; text: string }> = [];
   editError: Error | null = null;
-  private seq = 0;
+  seq = 0;
 
   async start(): Promise<void> {}
 
@@ -29,7 +29,12 @@ export class FakeConnector extends TypedEmitter<ConnectorEvents> implements Conn
   }
 
   async sendText(args: SendArgs): Promise<SendResult> {
-    this.sent.push({ chatJid: args.chatJid, text: args.text, quotedWaId: args.quotedWaId });
+    this.sent.push({
+      chatJid: args.chatJid,
+      text: args.text,
+      quotedWaId: args.quotedWaId,
+      mentionedJid: args.mentionedJid,
+    });
     const r: SendResult = { waMessageId: `fake-${++this.seq}`, ts: new Date() };
     setImmediate(() => this.emit('status', { waMessageId: r.waMessageId, status: 'sent' }));
     return r;

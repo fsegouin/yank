@@ -438,9 +438,12 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
 
   async sendText(args: SendArgs): Promise<SendResult> {
     if (!this.sock) throw new Error('connector not started');
+    const contextInfo: Record<string, unknown> = {};
+    if (args.quotedWaId) contextInfo.stanzaId = args.quotedWaId;
+    if (args.mentionedJid?.length) contextInfo.mentionedJid = args.mentionedJid;
     const sent = await this.sock.sendMessage(args.chatJid, {
       text: args.text,
-      ...(args.quotedWaId ? { contextInfo: { stanzaId: args.quotedWaId } } : {}),
+      ...(Object.keys(contextInfo).length ? { contextInfo } : {}),
     });
     if (!sent?.key?.id) throw new Error('sendMessage returned no key.id');
     return {

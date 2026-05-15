@@ -89,6 +89,7 @@ export async function handleSendCommand(
       chatJid: cmd.chatJid,
       text: cmd.text,
       quotedWaId: cmd.quotedWaId,
+      mentionedJid: cmd.mentionedJid,
     });
     await attachSentWaId(
       { db: ctx.db, userId: ctx.userId },

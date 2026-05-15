@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { and, desc, eq, lt, sql } from 'drizzle-orm';
 import type { Db } from '@yank/db';
 import { chats, contacts, messageMedia, messages } from '@yank/db/schema';
-import { newId, type Reaction, EditMessageBodySchema } from '@yank/shared';
+import { newId, type Reaction, EditMessageBodySchema, SendMessageBodySchema } from '@yank/shared';
 import type { CommandsBus } from '../commands-bus.js';
 import type { EventsPublisher } from '../events-publisher.js';
 
@@ -170,10 +170,15 @@ export function registerMessagesRoutes(
     },
   );
 
-  app.post<{ Params: { id: string }; Body: { text: string; quotedWaId?: string } }>(
+  app.post<{ Params: { id: string }; Body: unknown }>(
     '/api/chats/:id/messages',
     async (req, reply) => {
-      const text = (req.body?.text ?? '').trim();
+      const parsed = SendMessageBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: 'invalid_body', issues: parsed.error.issues });
+      }
+      const body = parsed.data;
+      const text = body.text.trim();
       if (!text) return reply.code(400).send({ error: 'empty_text' });
 
       const chat = await deps.db
@@ -205,7 +210,7 @@ export function registerMessagesRoutes(
         localId,
         chatJid: chat[0].jid,
         text,
-        quotedWaId: req.body?.quotedWaId,
+        mentionedJid: body.mentions?.map((m) => m.jid),
       });
 
       reply.code(202);

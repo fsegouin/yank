@@ -162,4 +162,42 @@ describe('outbound pipeline', () => {
     const after = received.slice(before);
     expect(after.find((e) => e.type === 'status' && e.status === 'failed')).toBeTruthy();
   });
+
+  it('handleSendCommand passes mentionedJid to connector.sendText', async () => {
+    const connector = new FakeConnector();
+    // Advance the seq so the generated waMessageId ('fake-4') does not collide with
+    // earlier tests in this suite (which already wrote 'fake-1' to the same USER).
+    connector.seq = 3;
+    const bus = createEventsBus(redis, USER);
+    attachOutbound({ db, userId: USER, connector, bus });
+
+    const chatId = (await db.select().from(chats).limit(1))[0]!.id;
+    const localId = newId();
+    await db.insert(messages).values({
+      id: localId,
+      userId: USER,
+      chatId,
+      senderJid: 'me',
+      ts: new Date(),
+      kind: 'text',
+      text: '@Alice hello',
+      status: 'pending',
+    });
+
+    await handleSendCommand(
+      { db, userId: USER, connector, bus },
+      {
+        type: 'send',
+        userId: USER,
+        localId,
+        chatJid: '4477@s.whatsapp.net',
+        text: '@Alice hello',
+        mentionedJid: ['alice@s.whatsapp.net'],
+      },
+    );
+
+    const sentEntry = connector.sent.find((s) => s.text === '@Alice hello');
+    expect(sentEntry).toBeDefined();
+    expect(sentEntry!.mentionedJid).toEqual(['alice@s.whatsapp.net']);
+  });
 });

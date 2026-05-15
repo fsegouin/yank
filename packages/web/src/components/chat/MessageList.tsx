@@ -120,43 +120,45 @@ export function MessageList({ chatId, onOpenThread }: Props) {
 
   return (
     <div className={styles.list} ref={ref}>
-      {messages.map((m, i) => {
-        const prev = messages[i - 1];
-        const newDay =
-          !prev || new Date(prev.ts).toDateString() !== new Date(m.ts).toDateString();
-        const showHead =
-          newDay ||
-          !prev ||
-          prev.senderJid !== m.senderJid ||
-          new Date(m.ts).getTime() - new Date(prev.ts).getTime() > 4 * 60_000;
-        const displayName = m.senderName ?? nameByJid.get(m.senderJid) ?? m.senderJid;
-        const isFirstUnread = i === firstUnreadIdx;
-        return (
-          <div key={m.id}>
-            {newDay && (
-              <div className={styles.divider}>
-                <span className={styles.pill}>{fmtDay(m.ts)}</span>
+      <div className={styles.inner}>
+        {messages.map((m, i) => {
+          const prev = messages[i - 1];
+          const newDay =
+            !prev || new Date(prev.ts).toDateString() !== new Date(m.ts).toDateString();
+          const showHead =
+            newDay ||
+            !prev ||
+            prev.senderJid !== m.senderJid ||
+            new Date(m.ts).getTime() - new Date(prev.ts).getTime() > 4 * 60_000;
+          const displayName = m.senderName ?? nameByJid.get(m.senderJid) ?? m.senderJid;
+          const isFirstUnread = i === firstUnreadIdx;
+          return (
+            <div key={m.id}>
+              {newDay && (
+                <div className={styles.divider}>
+                  <span className={styles.pill}>{fmtDay(m.ts)}</span>
+                </div>
+              )}
+              {isFirstUnread && (
+                <div id={`unread-divider-${m.id}`} className={styles.unreadDivider}>
+                  <span className={styles.unreadLabel}>
+                    {unreadCount} new message{unreadCount === 1 ? '' : 's'}
+                  </span>
+                </div>
+              )}
+              <div data-message-id={m.id} data-ts={m.ts}>
+                <MessageRow
+                  message={m}
+                  showHead={showHead}
+                  senderName={displayName}
+                  senderInitials={displayName.slice(0, 2).toUpperCase()}
+                  onOpenThread={() => onOpenThread(m.id)}
+                />
               </div>
-            )}
-            {isFirstUnread && (
-              <div id={`unread-divider-${m.id}`} className={styles.unreadDivider}>
-                <span className={styles.unreadLabel}>
-                  {unreadCount} new message{unreadCount === 1 ? '' : 's'}
-                </span>
-              </div>
-            )}
-            <div data-message-id={m.id} data-ts={m.ts}>
-              <MessageRow
-                message={m}
-                showHead={showHead}
-                senderName={displayName}
-                senderInitials={displayName.slice(0, 2).toUpperCase()}
-                onOpenThread={() => onOpenThread(m.id)}
-              />
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }

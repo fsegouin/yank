@@ -8,9 +8,8 @@ import Redis from 'ioredis';
 import Fastify from 'fastify';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { createLogger, eventsChannel } from '@yank/shared';
+import { eventsChannel } from '@yank/shared';
 import { ensureSingleUser } from '../src/bootstrap.js';
-import { createCommandsBus } from '../src/commands-bus.js';
 import { createEventsBus } from '../src/events-bus.js';
 import { createEventsPublisher } from '../src/events-publisher.js';
 import { registerEventsRoute } from '../src/routes/events.js';
@@ -53,10 +52,8 @@ describe('contacts rename', () => {
     subscriber = new Redis(redisC.getConnectionUrl());
     const eventsBus = createEventsBus(subscriber, USER);
     await eventsBus.start();
-    const commandsBus = createCommandsBus(redis, USER);
     const eventsPublisher = createEventsPublisher(redis, USER);
 
-    const log = createLogger({ service: 'contacts-test', level: 'warn' });
     app = Fastify({ logger: false });
     registerEventsRoute(app, { bus: eventsBus });
     registerChatsRoutes(app, { db, userId: USER });

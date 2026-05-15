@@ -48,9 +48,14 @@ export function MessageList({ chatId, onOpenThread }: Props) {
   // Index of the first message after the last-read boundary.
   const firstUnreadIdx = useMemo(() => {
     if (!lastReadTs) return -1;
-    return messages.findIndex(
+    const idx = messages.findIndex(
       (m) => m.ts > lastReadTs && m.id !== lastReadMessageId,
     );
+    // Suppress the divider when it would land at the very top of the loaded
+    // window — it then looks like a "header" rather than a useful boundary.
+    // The sidebar unread badge still surfaces that the chat has new messages.
+    if (idx === 0) return -1;
+    return idx;
   }, [messages, lastReadTs, lastReadMessageId]);
   const unreadCount = firstUnreadIdx >= 0 ? messages.length - firstUnreadIdx : 0;
 

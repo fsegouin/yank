@@ -42,6 +42,16 @@ export function attachInbound({ db, userId, connector, bus }: AttachInboundOpts)
     })();
   });
 
+  connector.on('contact', (contact) => {
+    void (async () => {
+      try {
+        await upsertContact(ctx, contact);
+      } catch (err) {
+        console.error('[ingest] failed to upsert contact metadata', err);
+      }
+    })();
+  });
+
   connector.on('history-progress', ({ synced, total }) => {
     void bus.publish({ type: 'sync-progress', userId, synced, total });
   });

@@ -17,15 +17,18 @@ export interface RepoCtx {
 }
 
 export async function upsertContact(ctx: RepoCtx, c: InboundContact): Promise<void> {
+  // Only refresh non-empty values — never clobber existing data with empty strings.
   const set: Record<string, string> = {};
-  if (c.pushName !== undefined) set.pushName = c.pushName;
-  if (c.businessName !== undefined) set.businessName = c.businessName;
+  if (c.pushName !== undefined && c.pushName.length > 0) set.pushName = c.pushName;
+  if (c.businessName !== undefined && c.businessName.length > 0) set.businessName = c.businessName;
+  if (c.displayName !== undefined && c.displayName.length > 0) set.displayName = c.displayName;
 
   const insert = ctx.db.insert(contacts).values({
     userId: ctx.userId,
     jid: c.jid,
     pushName: c.pushName,
     businessName: c.businessName,
+    displayName: c.displayName,
   });
 
   if (Object.keys(set).length === 0) {

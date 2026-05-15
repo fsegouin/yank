@@ -6,6 +6,7 @@ export interface InboundContact {
   jid: string;
   pushName?: string;
   businessName?: string;
+  displayName?: string;
 }
 
 export interface InboundChat {
@@ -38,6 +39,7 @@ export interface ConnectorEvents {
   'history-complete': () => void;
   message: (msg: InboundMessage, chat: InboundChat, contact: InboundContact) => void;
   chat: (chat: InboundChat) => void;
+  contact: (contact: InboundContact) => void;
   status: (info: OutboundStatus) => void;
 }
 

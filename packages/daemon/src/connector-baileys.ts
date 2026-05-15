@@ -155,6 +155,40 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
         });
       }
     });
+
+    sock.ev.on('contacts.upsert', (contactsList) => {
+      for (const c of contactsList) {
+        if (!c.id) continue;
+        const t = c as {
+          id: string;
+          name?: string | null;
+          notify?: string | null;
+          verifiedName?: string | null;
+        };
+        const displayName = t.name ?? undefined;
+        const pushName = t.notify ?? undefined;
+        const businessName = t.verifiedName ?? undefined;
+        if (!displayName && !pushName && !businessName) continue;
+        this.emit('contact', { jid: c.id, displayName, pushName, businessName });
+      }
+    });
+
+    sock.ev.on('contacts.update', (updates) => {
+      for (const u of updates) {
+        if (!u.id) continue;
+        const t = u as {
+          id: string;
+          name?: string | null;
+          notify?: string | null;
+          verifiedName?: string | null;
+        };
+        const displayName = t.name ?? undefined;
+        const pushName = t.notify ?? undefined;
+        const businessName = t.verifiedName ?? undefined;
+        if (!displayName && !pushName && !businessName) continue;
+        this.emit('contact', { jid: u.id, displayName, pushName, businessName });
+      }
+    });
   }
 
   async requestPair(method: 'qr' | 'code', phoneNumber?: string): Promise<void> {

@@ -8,6 +8,7 @@ import { createEventsBus } from './events-bus.js';
 import { attachInbound } from './ingest.js';
 import { attachOutbound, handleSendCommand } from './outbound.js';
 import { startCommandsConsumer } from './commands-consumer.js';
+import { handleDownloadCommand } from './download.js';
 
 export interface Session {
   start: () => Promise<void>;
@@ -20,6 +21,7 @@ export interface SessionDeps {
   redisUrl: string;
   log: Logger;
   connector: Connector;
+  mediaDir: string;
 }
 
 export function createSession(deps: SessionDeps): Session {
@@ -113,6 +115,11 @@ export function createSession(deps: SessionDeps): Session {
           } else if (cmd.type === 'send') {
             await handleSendCommand(
               { db, userId: deps.userId, connector: deps.connector, bus },
+              cmd,
+            );
+          } else if (cmd.type === 'download-media') {
+            await handleDownloadCommand(
+              { db, userId: deps.userId, mediaDir: deps.mediaDir, bus },
               cmd,
             );
           } else {

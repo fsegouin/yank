@@ -9,6 +9,7 @@ const EnvSchema = z.object({
     }),
   REDIS_URL: z.string().url().startsWith('redis://'),
   YANK_USER_ID: z.string().uuid({ message: 'YANK_USER_ID must be a UUID v4 or v7' }),
+  YANK_MEDIA_DIR: z.string().default('/var/lib/yank/media'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 });

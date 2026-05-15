@@ -24,6 +24,7 @@ const session = createSession({
   redisUrl: env.REDIS_URL,
   log,
   connector,
+  mediaDir: env.YANK_MEDIA_DIR,
 });
 
 await session.start();

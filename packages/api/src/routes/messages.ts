@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { and, desc, eq, lt, sql } from 'drizzle-orm';
 import type { Db } from '@yank/db';
-import { chats, contacts, messages } from '@yank/db/schema';
+import { chats, contacts, messageMedia, messages } from '@yank/db/schema';
 import { newId, type Reaction } from '@yank/shared';
 import type { CommandsBus } from '../commands-bus.js';
 
@@ -70,6 +70,12 @@ export function registerMessagesRoutes(
           senderDisplayName: contacts.displayName,
           senderPushName: contacts.pushName,
           senderBusinessName: contacts.businessName,
+          mediaMime: messageMedia.mime,
+          mediaSize: messageMedia.sizeBytes,
+          mediaWidth: messageMedia.width,
+          mediaHeight: messageMedia.height,
+          mediaDurationMs: messageMedia.durationMs,
+          mediaStatus: messageMedia.status,
           reactions: sql<unknown>`(
             SELECT COALESCE(json_agg(json_build_object(
               'emoji', emoji,
@@ -93,6 +99,7 @@ export function registerMessagesRoutes(
           contacts,
           and(eq(contacts.userId, messages.userId), eq(contacts.jid, messages.senderJid)),
         )
+        .leftJoin(messageMedia, eq(messageMedia.messageId, messages.id))
         .where(where)
         .orderBy(desc(messages.ts))
         .limit(limit + 1);
@@ -103,11 +110,35 @@ export function registerMessagesRoutes(
 
       return {
         messages: page.map((r) => {
-          const { senderDisplayName, senderPushName, senderBusinessName, reactions, ...rest } = r;
+          const {
+            senderDisplayName,
+            senderPushName,
+            senderBusinessName,
+            reactions,
+            mediaMime,
+            mediaSize,
+            mediaWidth,
+            mediaHeight,
+            mediaDurationMs,
+            mediaStatus,
+            ...rest
+          } = r;
           const senderName =
             r.senderJid === 'me'
               ? 'You'
               : (senderDisplayName ?? senderPushName ?? senderBusinessName ?? r.senderJid);
+          const media = mediaMime
+            ? {
+                mime: mediaMime,
+                sizeBytes: mediaSize ?? 0,
+                width: mediaWidth ?? null,
+                height: mediaHeight ?? null,
+                durationMs: mediaDurationMs ?? null,
+                url: mediaStatus === 'ready' ? `/api/media/${r.id}` : null,
+                thumbnailUrl: null,
+                status: mediaStatus,
+              }
+            : undefined;
           return {
             ...rest,
             ts: r.ts ? new Date(r.ts).toISOString() : null,
@@ -115,6 +146,7 @@ export function registerMessagesRoutes(
             deletedAt: r.deletedAt ? new Date(r.deletedAt).toISOString() : null,
             reactions: (reactions ?? []) as unknown as Reaction[],
             senderName,
+            media,
           };
         }),
         nextCursor,

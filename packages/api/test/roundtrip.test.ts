@@ -56,6 +56,7 @@ describe('M2 roundtrip', () => {
       redisUrl: redisC.getConnectionUrl(),
       log,
       connector,
+      mediaDir: '/tmp/yank-media-test',
     });
     await session.start();
 
@@ -123,9 +124,7 @@ describe('M2 roundtrip', () => {
 
     let final: { status?: string } = {};
     for (let i = 0; i < 30; i++) {
-      const body = (await (
-        await fetch(`${baseUrl}/api/chats/${chatId}/messages`)
-      ).json()) as {
+      const body = (await (await fetch(`${baseUrl}/api/chats/${chatId}/messages`)).json()) as {
         messages: Array<{ id: string; status: string }>;
         nextCursor: string | null;
       };
@@ -141,46 +140,42 @@ describe('M2 roundtrip', () => {
     expect(connector.sent.find((s) => s.text === 'outbound from roundtrip')).toBeTruthy();
   });
 
-  it(
-    'SSE: subscribers receive message events when a new inbound arrives',
-    async () => {
-      const seen: string[] = [];
-      const controller = new AbortController();
-      const res = await fetch(`${baseUrl}/api/events`, { signal: controller.signal });
+  it('SSE: subscribers receive message events when a new inbound arrives', async () => {
+    const seen: string[] = [];
+    const controller = new AbortController();
+    const res = await fetch(`${baseUrl}/api/events`, { signal: controller.signal });
 
-      // SSE handler is fully wired (headers + attach) by the time fetch resolves with headers.
-      // Wait a tick to be sure, then push.
-      setTimeout(() => {
-        connector.pushMessage(
-          {
-            waMessageId: 'WA-RT-SSE',
-            chatJid: '4477@s.whatsapp.net',
-            senderJid: '4477@s.whatsapp.net',
-            fromMe: false,
-            ts: new Date(),
-            kind: 'text',
-            text: 'sse-test',
-          },
-          { jid: '4477@s.whatsapp.net', type: 'dm' },
-          { jid: '4477@s.whatsapp.net' },
-        );
-      }, 200);
+    // SSE handler is fully wired (headers + attach) by the time fetch resolves with headers.
+    // Wait a tick to be sure, then push.
+    setTimeout(() => {
+      connector.pushMessage(
+        {
+          waMessageId: 'WA-RT-SSE',
+          chatJid: '4477@s.whatsapp.net',
+          senderJid: '4477@s.whatsapp.net',
+          fromMe: false,
+          ts: new Date(),
+          kind: 'text',
+          text: 'sse-test',
+        },
+        { jid: '4477@s.whatsapp.net', type: 'dm' },
+        { jid: '4477@s.whatsapp.net' },
+      );
+    }, 200);
 
-      const decoder = new TextDecoder();
-      const stream = res.body!.getReader();
-      const deadline = Date.now() + 5000;
-      while (Date.now() < deadline) {
-        const { value, done } = await stream.read();
-        if (done) break;
-        const chunk = decoder.decode(value);
-        for (const line of chunk.split('\n')) {
-          if (line.startsWith('event:')) seen.push(line.slice(6).trim());
-        }
-        if (seen.includes('message')) break;
+    const decoder = new TextDecoder();
+    const stream = res.body!.getReader();
+    const deadline = Date.now() + 5000;
+    while (Date.now() < deadline) {
+      const { value, done } = await stream.read();
+      if (done) break;
+      const chunk = decoder.decode(value);
+      for (const line of chunk.split('\n')) {
+        if (line.startsWith('event:')) seen.push(line.slice(6).trim());
       }
-      controller.abort();
-      expect(seen).toContain('message');
-    },
-    15_000,
-  );
+      if (seen.includes('message')) break;
+    }
+    controller.abort();
+    expect(seen).toContain('message');
+  }, 15_000);
 });

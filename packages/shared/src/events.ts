@@ -48,6 +48,12 @@ export const MessageStatusEvent = Base.extend({
   waMessageId: z.string().optional(),
 });
 
+export const MediaReadyEvent = Base.extend({
+  type: z.literal('media-ready'),
+  messageId: z.string().uuid(),
+  status: z.enum(['ready', 'failed']),
+});
+
 export const DaemonEventSchema = z.discriminatedUnion('type', [
   QrEvent,
   PairCodeEvent,
@@ -57,6 +63,7 @@ export const DaemonEventSchema = z.discriminatedUnion('type', [
   SyncCompleteEvent,
   MessageEvent,
   MessageStatusEvent,
+  MediaReadyEvent,
 ]);
 
 export type DaemonEvent = z.infer<typeof DaemonEventSchema>;
@@ -66,7 +73,10 @@ export type DaemonEvent = z.infer<typeof DaemonEventSchema>;
 export const PairCommand = Base.extend({
   type: z.literal('pair'),
   method: z.enum(['qr', 'code']),
-  phoneNumber: z.string().regex(/^\d{6,15}$/).optional(),
+  phoneNumber: z
+    .string()
+    .regex(/^\d{6,15}$/)
+    .optional(),
 });
 
 export const SendCommand = Base.extend({
@@ -96,12 +106,18 @@ export const TypingCommand = Base.extend({
   state: z.enum(['composing', 'paused']),
 });
 
+export const DownloadMediaCommand = Base.extend({
+  type: z.literal('download-media'),
+  messageId: z.string().uuid(),
+});
+
 export const ApiCommandSchema = z.discriminatedUnion('type', [
   PairCommand,
   SendCommand,
   ReactCommand,
   MarkReadCommand,
   TypingCommand,
+  DownloadMediaCommand,
 ]);
 
 export type ApiCommand = z.infer<typeof ApiCommandSchema>;

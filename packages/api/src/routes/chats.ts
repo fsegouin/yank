@@ -142,4 +142,33 @@ export function registerChatsRoutes(app: FastifyInstance<any, any, any, any>, de
       unreadCount: r.unreadCount,
     };
   });
+
+  app.post<{
+    Params: { id: string };
+    Body: { workspace: 'work' | 'personal' | 'triage' | 'hidden' };
+  }>('/api/chats/:id/assignment', async (req, reply) => {
+    const allowed = new Set(['work', 'personal', 'triage', 'hidden']);
+    const workspace = req.body?.workspace;
+    if (!workspace || !allowed.has(workspace)) {
+      return reply.code(400).send({ error: 'invalid_workspace' });
+    }
+    // Verify the chat belongs to this user.
+    const chat = await deps.db
+      .select({ id: chats.id })
+      .from(chats)
+      .where(and(eq(chats.userId, deps.userId), eq(chats.id, req.params.id)))
+      .limit(1);
+    if (!chat[0]) return reply.code(404).send({ error: 'not_found' });
+
+    await deps.db
+      .insert(chatAssignments)
+      .values({ chatId: chat[0].id, workspace })
+      .onConflictDoUpdate({
+        target: chatAssignments.chatId,
+        set: { workspace, assignedAt: new Date() },
+      });
+
+    reply.code(204);
+    return null;
+  });
 }

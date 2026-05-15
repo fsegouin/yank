@@ -46,7 +46,7 @@ export function useStar() {
 export function useAssignWorkspace(chatId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (workspace: Exclude<Workspace, 'triage'>) =>
+    mutationFn: (workspace: Workspace) =>
       apiFetch<void>(`/api/chats/${chatId}/assignment`, {
         method: 'POST',
         body: { workspace },

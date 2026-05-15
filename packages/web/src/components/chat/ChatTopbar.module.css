@@ -50,6 +50,9 @@
   gap: 2px;
 }
 
+.wsPillWrap {
+  position: relative;
+}
 .wsPill {
   display: inline-flex;
   align-items: center;
@@ -62,11 +65,54 @@
   background: var(--bg-1);
   margin-right: 4px;
   text-transform: capitalize;
+  cursor: pointer;
+  font-family: inherit;
 }
 .wsDot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
+}
+.wsMenu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  background: var(--bg-1);
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius-1);
+  box-shadow: var(--shadow-2);
+  min-width: 140px;
+  z-index: 100;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.wsMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: var(--fs-meta);
+  color: var(--fg-1);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-1);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+.wsMenuItem:hover {
+  background: var(--bg-2);
+  color: var(--fg-0);
+}
+.wsMenuItem:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+.wsMenuItemActive {
+  color: var(--fg-0);
+  font-weight: 500;
 }
 
 .iconBtn {

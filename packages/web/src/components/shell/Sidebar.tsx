@@ -1,12 +1,11 @@
 import { useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate, useParams } from '@tanstack/react-router';
-import { useChats } from '../../lib/queries.js';
+import { useChatsForWorkspace } from '../../lib/queries.js';
 import { useUiStore } from '../../state/ui.js';
 import { ChatRow } from './ChatRow.js';
 import { PhoneStatusFoot } from './PhoneStatusFoot.js';
 import { SearchIcon, ChevronDownIcon, PlusIcon, MoreIcon } from '../icons/index.js';
-import type { Chat } from '@yank/shared';
 import styles from './Sidebar.module.css';
 
 export function Sidebar() {
@@ -15,16 +14,16 @@ export function Sidebar() {
   const navigate = useNavigate();
   const params = useParams({ strict: false }) as { chatId?: string };
   const activeChatId = params.chatId;
-  const { data: chats = [] } = useChats();
+  const wsChats = useChatsForWorkspace(workspace);
 
-  const { pinned, groups, dms } = useMemo(() => {
-    const wsChats: Chat[] = chats.filter((c) => c.workspace === workspace);
-    return {
+  const { pinned, groups, dms } = useMemo(
+    () => ({
       pinned: wsChats.filter((c) => c.pinned),
       groups: wsChats.filter((c) => !c.pinned && c.type !== 'dm'),
       dms: wsChats.filter((c) => !c.pinned && c.type === 'dm'),
-    };
-  }, [chats, workspace]);
+    }),
+    [wsChats],
+  );
 
   const title = workspace === 'work' ? 'Work' : workspace === 'personal' ? 'Personal' : 'Triage';
 

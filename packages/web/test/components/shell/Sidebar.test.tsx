@@ -155,4 +155,51 @@ describe('Sidebar', () => {
     expect(screen.getByText(/group chats/i)).toBeInTheDocument();
     expect(screen.getByText(/direct messages/i)).toBeInTheDocument();
   });
+
+  it('excludes hidden chats from the sidebar', async () => {
+    useUiStore.setState({ workspace: 'work' });
+    server.use(
+      http.get('/api/chats', () =>
+        HttpResponse.json([
+          {
+            id: 'b1ee0d52-2c8e-7e7a-a4cf-000000000010',
+            userId: 'b1ee0d52-2c8e-7e7a-a4cf-000000000099',
+            jid: 'a@g.us',
+            type: 'group',
+            subject: 'Work Chat',
+            lastMessageAt: null,
+            lastMessagePreview: null,
+            archived: false,
+            mutedUntil: null,
+            pinned: false,
+            workspace: 'work',
+            memberCount: 1,
+            unreadCount: 0,
+            lastReadMessageId: null,
+            lastReadTs: null,
+          },
+          {
+            id: 'b1ee0d52-2c8e-7e7a-a4cf-000000000011',
+            userId: 'b1ee0d52-2c8e-7e7a-a4cf-000000000099',
+            jid: 'b@g.us',
+            type: 'group',
+            subject: 'Hidden Chat',
+            lastMessageAt: null,
+            lastMessagePreview: null,
+            archived: false,
+            mutedUntil: null,
+            pinned: false,
+            workspace: 'hidden',
+            memberCount: 1,
+            unreadCount: 0,
+            lastReadMessageId: null,
+            lastReadTs: null,
+          },
+        ]),
+      ),
+    );
+    renderSidebar();
+    await waitFor(() => screen.getByText('Work Chat'));
+    expect(screen.queryByText('Hidden Chat')).not.toBeInTheDocument();
+  });
 });

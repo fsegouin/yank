@@ -34,8 +34,8 @@ export function ChatView({ chatId }: { chatId: string }) {
         <Composer
           chatId={chatId}
           placeholder={`Message ${chat.subject ?? chat.jid}`}
-          onSend={(text) => {
-            send.mutate({ text });
+          onSend={(text, mentions) => {
+            send.mutate({ text, mentions });
           }}
         />
       </main>

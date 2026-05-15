@@ -1,0 +1,42 @@
+.popover {
+  z-index: var(--z-popover, 200);
+  background: var(--c-surface-raised);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  min-width: 200px;
+  max-width: 320px;
+  overflow: hidden;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--c-text);
+  user-select: none;
+}
+
+.item:hover,
+.item.active {
+  background: var(--c-surface-hover);
+}
+
+.name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lidTag {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  background: var(--c-surface-subtle);
+  color: var(--c-text-muted);
+  border-radius: 4px;
+  padding: 1px 4px;
+}

@@ -27,6 +27,13 @@ export const ReactionSchema = z.object({
 });
 export type Reaction = z.infer<typeof ReactionSchema>;
 
+export const MentionSchema = z.object({
+  start: z.number().int().nonnegative(),
+  end: z.number().int().nonnegative(),
+  jid: z.string().min(1),
+});
+export type Mention = z.infer<typeof MentionSchema>;
+
 export const ChatSchema = z.object({
   id: Uuid,
   userId: Uuid,
@@ -100,6 +107,7 @@ export type ChatMember = z.infer<typeof ChatMemberSchema>;
 export const SendMessageBodySchema = z.object({
   text: z.string().min(1),
   replyToId: Uuid.optional(),
+  mentions: z.array(MentionSchema).optional(),
 });
 export type SendMessageBody = z.infer<typeof SendMessageBodySchema>;
 

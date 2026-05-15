@@ -144,3 +144,29 @@ describe('M4 commands', () => {
     ).toThrow();
   });
 });
+
+describe('SendCommand with mentionedJid', () => {
+  it('accepts SendCommand without mentionedJid', () => {
+    const cmd = ApiCommandSchema.parse({
+      userId: '01938b3a-8b1b-7c00-a000-000000000001',
+      type: 'send',
+      localId: '01938b3a-8b1b-7c00-a000-000000000010',
+      chatJid: '11111@s.whatsapp.net',
+      text: 'hello',
+    });
+    expect(cmd.type).toBe('send');
+    expect(('mentionedJid' in cmd ? cmd.mentionedJid : undefined)).toBeUndefined();
+  });
+
+  it('accepts SendCommand with mentionedJid', () => {
+    const cmd = ApiCommandSchema.parse({
+      userId: '01938b3a-8b1b-7c00-a000-000000000001',
+      type: 'send',
+      localId: '01938b3a-8b1b-7c00-a000-000000000010',
+      chatJid: '11111@s.whatsapp.net',
+      text: '@Alice hello',
+      mentionedJid: ['4477@s.whatsapp.net'],
+    });
+    expect(('mentionedJid' in cmd ? cmd.mentionedJid : null)).toEqual(['4477@s.whatsapp.net']);
+  });
+});

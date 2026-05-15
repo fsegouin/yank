@@ -124,6 +124,7 @@ export const SendCommand = Base.extend({
   chatJid: z.string(),
   text: z.string(),
   quotedWaId: z.string().optional(),
+  mentionedJid: z.array(z.string()).optional(),
 });
 
 export const ReactCommand = Base.extend({

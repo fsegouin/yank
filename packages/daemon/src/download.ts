@@ -1,10 +1,13 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import type Redis from 'ioredis';
 import type { Db } from '@yank/db';
 import { and, eq } from 'drizzle-orm';
 import { chats, messageMedia, messages } from '@yank/db/schema';
 import type { Connector } from './connector.js';
 import type { EventsBus } from './events-bus.js';
+import { createBreaker } from './circuit-breaker.js';
+import type { BreakerState } from './circuit-breaker.js';
 
 export interface DownloadDeps {
   db: Db;
@@ -12,6 +15,42 @@ export interface DownloadDeps {
   mediaDir: string;
   bus: EventsBus;
   connector: Connector;
+  redis: Redis;
+}
+
+// Module-level breaker singleton (one instance per process; reset only in tests).
+let breaker = createBreaker({
+  threshold: 3,
+  windowMs: 60_000,
+  baseCooldownMs: 5 * 60_000,
+  maxCooldownMs: 30 * 60_000,
+});
+
+/** Exposed only for unit tests — resets the singleton. */
+export function resetBreakerForTest(): void {
+  breaker = createBreaker({
+    threshold: 3,
+    windowMs: 60_000,
+    baseCooldownMs: 5 * 60_000,
+    maxCooldownMs: 30 * 60_000,
+  });
+}
+
+async function publishBreakerState(
+  deps: DownloadDeps,
+  state: BreakerState,
+  retryAt?: Date,
+): Promise<void> {
+  await deps.bus.publish({
+    type: 'media-breaker-state',
+    userId: deps.userId,
+    state,
+    retryAt: retryAt?.toISOString(),
+  });
+  // Persist to Redis hash so GET /api/media/breaker-state can serve fresh tabs.
+  const key = `breaker:user:${deps.userId}`;
+  await deps.redis.hset(key, 'state', state, 'retryAt', retryAt?.toISOString() ?? '');
+  await deps.redis.expire(key, 3600);
 }
 
 interface MediaMetadata {
@@ -33,7 +72,7 @@ const MEDIA_TYPE_MAP: Record<string, 'image' | 'video' | 'audio' | 'document' | 
 
 export async function handleDownloadCommand(
   deps: DownloadDeps,
-  cmd: { messageId: string },
+  cmd: { messageId: string; bypassBreaker?: boolean },
 ): Promise<void> {
   // Look up the message + media row. We also need waMessageId, senderJid and the
   // chat JID so we can hand a reconstructed proto message to Baileys' downloader
@@ -70,6 +109,18 @@ export async function handleDownloadCommand(
 
   if (!meta.directPath || !meta.mediaKey) {
     await markFailed(deps, cmd.messageId, new Error('missing directPath or mediaKey'));
+    return;
+  }
+
+  // Circuit-breaker guard: skip Baileys call when the breaker is open (unless bypassed).
+  const bypass = cmd.bypassBreaker === true;
+  if (!bypass && breaker.shouldBlock()) {
+    await deps.bus.publish({
+      type: 'media-ready',
+      userId: deps.userId,
+      messageId: cmd.messageId,
+      status: 'failed',
+    });
     return;
   }
 
@@ -143,6 +194,7 @@ export async function handleDownloadCommand(
       messageId: cmd.messageId,
       status: 'ready',
     });
+    breaker.recordSuccess();
   } catch (err) {
     console.error('[download] media download failed', {
       messageId: cmd.messageId,
@@ -156,6 +208,16 @@ export async function handleDownloadCommand(
       messageId: cmd.messageId,
       status: 'failed',
     });
+    // Only record timed-out / transient failures as breaker failures.
+    const reason = classifyError(err);
+    if (reason === 'transient') {
+      const prevState = breaker.getState().state;
+      breaker.recordFailure();
+      const next = breaker.getState();
+      if (next.state !== prevState) {
+        await publishBreakerState(deps, next.state, next.retryAt ?? undefined);
+      }
+    }
   }
 }
 

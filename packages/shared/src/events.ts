@@ -149,6 +149,7 @@ export const TypingCommand = Base.extend({
 export const DownloadMediaCommand = Base.extend({
   type: z.literal('download-media'),
   messageId: z.string().uuid(),
+  bypassBreaker: z.boolean().optional(),
 });
 
 export const EditMessageCommand = Base.extend({

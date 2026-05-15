@@ -130,6 +130,7 @@ export function createSession(deps: SessionDeps): Session {
                 mediaDir: deps.mediaDir,
                 bus,
                 connector: deps.connector,
+                redis,
               },
               cmd,
             );

@@ -16,6 +16,7 @@ const NAMED_EVENTS = [
   'pair-code',
   'media-ready',
   'chat-assignment',
+  'contact-update',
 ] as const;
 
 export interface UseEventStreamOptions {
@@ -65,6 +66,24 @@ export function useEventStream(opts: UseEventStreamOptions = {}): void {
             ),
           );
           return;
+        case 'contact-update': {
+          // Patch chats list: update subject for DM chats whose jid matches contactId
+          qc.setQueryData<Chat[]>(queryKeys.chats(), (old) =>
+            old?.map((c) =>
+              c.type === 'dm' && c.jid === evt.contactId
+                ? { ...c, subject: evt.displayName }
+                : c,
+            ),
+          );
+          // Patch individual contact cache if present
+          const prev = qc.getQueryData<{ jid: string; displayName?: string | null }>(
+            queryKeys.contact(evt.contactId),
+          );
+          if (prev !== undefined) {
+            qc.setQueryData(queryKeys.contact(evt.contactId), { ...prev, displayName: evt.displayName });
+          }
+          return;
+        }
         // qr / sync-progress / pair-code are consumed via onEvent by the setup screen.
         default:
           return;

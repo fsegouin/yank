@@ -150,3 +150,84 @@ describe('CommandPalette', () => {
     expect(screen.getByText('Studio')).toBeInTheDocument();
   });
 });
+
+describe('CommandPalette mode="chats-only"', () => {
+  it('hides action rows when mode is chats-only', async () => {
+    server.use(
+      http.get('/api/chats', () =>
+        HttpResponse.json([
+          {
+            id: 'b1ee0d52-2c8e-7e7a-a4cf-000000000030',
+            userId: 'b1ee0d52-2c8e-7e7a-a4cf-000000000099',
+            jid: 'x@g.us',
+            type: 'group',
+            subject: 'Alpha Group',
+            lastMessageAt: null,
+            lastMessagePreview: null,
+            archived: false,
+            mutedUntil: null,
+            pinned: false,
+            workspace: 'work',
+            memberCount: 1,
+            unreadCount: 0,
+            lastReadMessageId: null,
+            lastReadTs: null,
+          },
+        ]),
+      ),
+    );
+    useUiStore.setState({ paletteOpen: true });
+    // Render with mode prop by slightly adjusting the helper:
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const root = createRootRoute({ component: () => <CommandPalette mode="chats-only" /> });
+    const idx = createRoute({ getParentRoute: () => root, path: '/', component: () => null });
+    const chat = createRoute({
+      getParentRoute: () => root,
+      path: '/c/$chatId',
+      component: () => null,
+    });
+    const router = createRouter({
+      routeTree: root.addChildren([idx, chat]),
+      history: createMemoryHistory({ initialEntries: ['/'] }),
+    });
+    render(
+      <QueryClientProvider client={qc}>
+        <RouterProvider router={router as never} />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText('Alpha Group')).toBeInTheDocument();
+    expect(screen.queryByText('Open Triage')).not.toBeInTheDocument();
+    expect(screen.queryByText('Global search…')).not.toBeInTheDocument();
+  });
+
+  it('excludes hidden chats from jump list', async () => {
+    server.use(
+      http.get('/api/chats', () =>
+        HttpResponse.json([
+          {
+            id: 'b1ee0d52-2c8e-7e7a-a4cf-000000000031',
+            userId: 'b1ee0d52-2c8e-7e7a-a4cf-000000000099',
+            jid: 'y@g.us',
+            type: 'group',
+            subject: 'Hidden Chat',
+            lastMessageAt: null,
+            lastMessagePreview: null,
+            archived: false,
+            mutedUntil: null,
+            pinned: false,
+            workspace: 'hidden',
+            memberCount: 1,
+            unreadCount: 0,
+            lastReadMessageId: null,
+            lastReadTs: null,
+          },
+        ]),
+      ),
+    );
+    useUiStore.setState({ paletteOpen: true });
+    renderPalette();
+    // Wait for query to settle — actions are always present in default mode
+    await screen.findByText('Open Triage');
+    expect(screen.queryByText('Hidden Chat')).not.toBeInTheDocument();
+  });
+});

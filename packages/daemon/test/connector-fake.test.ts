@@ -41,6 +41,7 @@ describe('FakeConnector', () => {
         senderJid: '4477@s.whatsapp.net',
         fromMe: false,
         ts: new Date(0),
+        kind: 'text',
         text: 'yo',
       },
       { jid: '4477@s.whatsapp.net', type: 'dm' },

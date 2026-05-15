@@ -6,8 +6,14 @@ import {
 } from '@whiskeysockets/baileys';
 import type { Boom } from '@hapi/boom';
 import { TypedEmitter } from './typed-emitter.js';
-import type { Connector, ConnectorEvents, SendArgs, SendResult } from './connector.js';
-import { normalizeBaileysMessage } from './normalize.js';
+import type {
+  Connector,
+  ConnectorEvents,
+  InboundGroupMember,
+  SendArgs,
+  SendResult,
+} from './connector.js';
+import { normalizeBaileysMessage, normalizeBaileysReaction } from './normalize.js';
 import { loadAuthState } from './auth-state.js';
 
 export interface BaileysConnectorOpts {
@@ -23,6 +29,8 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
   private syncIdleTimer: ReturnType<typeof setTimeout> | null = null;
   private syncCompleted = false;
   private historySynced = 0;
+  // JIDs we've already requested group metadata for this session — avoid repeats.
+  private groupMetaRequested = new Set<string>();
 
   constructor(private opts: BaileysConnectorOpts) {
     super();
@@ -36,6 +44,7 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
   private async connect(): Promise<void> {
     this.syncCompleted = false;
     this.historySynced = 0;
+    this.groupMetaRequested.clear();
     const { version } = await fetchLatestBaileysVersion();
     const sock = makeWASocket({
       version,
@@ -83,16 +92,19 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
         if (!c.id) continue;
         const t = c as { id: string; name?: string | null; subject?: string | null };
         const subject = t.name ?? t.subject ?? undefined;
-        if (subject == null) continue;
-        this.emit('chat', {
-          jid: c.id,
-          type: c.id.endsWith('@g.us')
-            ? 'group'
-            : c.id.endsWith('@newsletter')
-              ? 'newsletter'
-              : 'dm',
-          subject,
-        });
+        if (subject != null) {
+          this.emit('chat', {
+            jid: c.id,
+            type: c.id.endsWith('@g.us')
+              ? 'group'
+              : c.id.endsWith('@newsletter')
+                ? 'newsletter'
+                : 'dm',
+            subject,
+          });
+        }
+        // Backfill group membership snapshot — fire-and-forget so history sync isn't blocked.
+        this.requestGroupMembers(c.id);
       }
 
       // Contacts — address-book display names from history payload.
@@ -113,6 +125,11 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
 
       // Ingest the history batch via the same path as live messages.
       for (const m of h.messages ?? []) {
+        const reaction = normalizeBaileysReaction(m);
+        if (reaction) {
+          this.emit('reaction', reaction);
+          continue;
+        }
         const r = normalizeBaileysMessage(m);
         if (!r) continue;
         this.emit('message', r.msg, r.chat, r.contact);
@@ -137,6 +154,11 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
 
     sock.ev.on('messages.upsert', ({ messages: msgs }) => {
       for (const m of msgs) {
+        const reaction = normalizeBaileysReaction(m);
+        if (reaction) {
+          this.emit('reaction', reaction);
+          continue;
+        }
         const r = normalizeBaileysMessage(m);
         if (!r) continue;
         this.emit('message', r.msg, r.chat, r.contact);
@@ -154,6 +176,64 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
       }
     });
 
+    sock.ev.on('messages.reaction', (reactions) => {
+      for (const r of reactions) {
+        if (!r.key?.id || !r.reaction?.key?.id) continue;
+        const remoteJid = r.key.remoteJid;
+        if (!remoteJid) continue;
+        const reactorJid = remoteJid.endsWith('@g.us')
+          ? (r.key.participant ?? remoteJid)
+          : r.key.fromMe
+            ? 'me'
+            : remoteJid;
+        this.emit('reaction', {
+          chatJid: remoteJid,
+          targetWaMessageId: r.reaction.key.id,
+          reactorJid,
+          emoji: r.reaction.text ?? '',
+          ts: new Date(),
+        });
+      }
+    });
+
+    sock.ev.on('message-receipt.update', (updates) => {
+      for (const u of updates) {
+        if (!u.key?.id) continue;
+        const readMs = u.receipt?.readTimestamp;
+        const recvMs = u.receipt?.receiptTimestamp;
+        const ts = readMs
+          ? new Date(Number(readMs) * 1000)
+          : recvMs
+            ? new Date(Number(recvMs) * 1000)
+            : new Date();
+        const status: 'delivered' | 'read' = readMs ? 'read' : 'delivered';
+        this.emit('receipt', {
+          waMessageId: u.key.id,
+          status,
+          participantJid: u.key.participant ?? undefined,
+          ts,
+        });
+      }
+    });
+
+    sock.ev.on('presence.update', ({ presences }) => {
+      for (const [jid, p] of Object.entries(presences ?? {})) {
+        if (!p?.lastKnownPresence) continue;
+        this.emit('presence', {
+          jid,
+          status: p.lastKnownPresence,
+          lastSeen: p.lastSeen ? new Date(p.lastSeen * 1000) : undefined,
+        });
+      }
+    });
+
+    sock.ev.on('group-participants.update', (event) => {
+      // Refresh the full membership snapshot whenever participants change. We always
+      // bypass the throttle here because participants actually changed.
+      this.groupMetaRequested.delete(event.id);
+      this.requestGroupMembers(event.id);
+    });
+
     sock.ev.on('chats.upsert', (chats) => {
       for (const c of chats) {
         if (!c.id) continue;
@@ -167,6 +247,7 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
               : 'dm',
           subject: meta.name ?? meta.subject ?? undefined,
         });
+        this.requestGroupMembers(c.id);
       }
     });
 
@@ -222,6 +303,34 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
         this.emit('contact', { jid: u.id, displayName, pushName, businessName });
       }
     });
+  }
+
+  /**
+   * Fire-and-forget request for a group's participant list. Skips if it's not a group
+   * JID or if we've already requested this session. Failures (no access etc.) are silent.
+   */
+  private requestGroupMembers(jid: string): void {
+    if (!jid.endsWith('@g.us')) return;
+    if (this.groupMetaRequested.has(jid)) return;
+    this.groupMetaRequested.add(jid);
+    const sock = this.sock;
+    if (!sock) return;
+    void sock
+      .groupMetadata(jid)
+      .then((metadata) => {
+        if (!metadata?.participants) return;
+        const members: InboundGroupMember[] = metadata.participants.map((p) => {
+          const admin = p.admin;
+          const role: InboundGroupMember['role'] =
+            admin === 'superadmin' ? 'superadmin' : admin === 'admin' ? 'admin' : 'member';
+          return { jid: p.id, role };
+        });
+        this.emit('group-members', jid, members);
+      })
+      .catch(() => {
+        // No access / network blip — drop the throttle marker so a future event can retry.
+        this.groupMetaRequested.delete(jid);
+      });
   }
 
   async requestPair(method: 'qr' | 'code', phoneNumber?: string): Promise<void> {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeBaileysMessage } from '../src/normalize.js';
+import { normalizeBaileysMessage, normalizeBaileysReaction } from '../src/normalize.js';
 
 const baseMsg = {
   key: { remoteJid: '4477@s.whatsapp.net', id: 'WA-A', fromMe: false, participant: undefined },
@@ -10,7 +10,9 @@ const baseMsg = {
 
 describe('normalizeBaileysMessage', () => {
   it('extracts text from conversation', () => {
-    const r = normalizeBaileysMessage(baseMsg as unknown as Parameters<typeof normalizeBaileysMessage>[0]);
+    const r = normalizeBaileysMessage(
+      baseMsg as unknown as Parameters<typeof normalizeBaileysMessage>[0],
+    );
     expect(r?.msg.text).toBe('hello world');
     expect(r?.msg.waMessageId).toBe('WA-A');
     expect(r?.chat.type).toBe('dm');
@@ -25,10 +27,59 @@ describe('normalizeBaileysMessage', () => {
     expect(r?.msg.text).toBe('replying');
   });
 
-  it('returns null for unsupported kinds (image, sticker, etc.)', () => {
+  it('normalizes imageMessage to kind=image with caption', () => {
     const r = normalizeBaileysMessage({
       ...baseMsg,
-      message: { imageMessage: { caption: 'pic' } },
+      message: { imageMessage: { caption: 'pic', mimetype: 'image/jpeg', fileLength: 42 } },
+    } as unknown as Parameters<typeof normalizeBaileysMessage>[0]);
+    expect(r?.msg.kind).toBe('image');
+    expect(r?.msg.text).toBe('pic');
+    expect(r?.msg.media?.mime).toBe('image/jpeg');
+    expect(r?.msg.media?.sizeBytes).toBe(42);
+  });
+
+  it('normalizes audioMessage with durationMs from seconds*1000', () => {
+    const r = normalizeBaileysMessage({
+      ...baseMsg,
+      message: { audioMessage: { seconds: 7, mimetype: 'audio/ogg' } },
+    } as unknown as Parameters<typeof normalizeBaileysMessage>[0]);
+    expect(r?.msg.kind).toBe('audio');
+    expect(r?.msg.text).toBeNull();
+    expect(r?.msg.media?.durationMs).toBe(7000);
+  });
+
+  it('normalizes documentMessage with text=fileName', () => {
+    const r = normalizeBaileysMessage({
+      ...baseMsg,
+      message: { documentMessage: { fileName: 'spec.pdf', mimetype: 'application/pdf' } },
+    } as unknown as Parameters<typeof normalizeBaileysMessage>[0]);
+    expect(r?.msg.kind).toBe('document');
+    expect(r?.msg.text).toBe('spec.pdf');
+    expect(r?.msg.media?.fileName).toBe('spec.pdf');
+  });
+
+  it('returns null for ephemeral protocolMessage', () => {
+    const r = normalizeBaileysMessage({
+      ...baseMsg,
+      message: { protocolMessage: { type: 3 } }, // EPHEMERAL_SETTING
+    } as unknown as Parameters<typeof normalizeBaileysMessage>[0]);
+    expect(r).toBeNull();
+  });
+
+  it('emits kind=system with deletedAt for protocolMessage REVOKE', () => {
+    const r = normalizeBaileysMessage({
+      ...baseMsg,
+      message: { protocolMessage: { type: 0 } }, // REVOKE
+    } as unknown as Parameters<typeof normalizeBaileysMessage>[0]);
+    expect(r?.msg.kind).toBe('system');
+    expect(r?.msg.text).toBe('message deleted');
+    expect(r?.msg.deletedAt).toBeInstanceOf(Date);
+  });
+
+  it('returns null for reactionMessage payloads (route via normalizeBaileysReaction)', () => {
+    const r = normalizeBaileysMessage({
+      ...baseMsg,
+      message: { reactionMessage: { key: { id: 'WA-PARENT' }, text: 'love' } },
     } as unknown as Parameters<typeof normalizeBaileysMessage>[0]);
     expect(r).toBeNull();
   });
@@ -58,5 +109,44 @@ describe('normalizeBaileysMessage', () => {
       },
     } as unknown as Parameters<typeof normalizeBaileysMessage>[0]);
     expect(r?.msg.quotedWaId).toBe('WA-PARENT');
+  });
+});
+
+describe('normalizeBaileysReaction', () => {
+  it('extracts emoji + targetWaMessageId in DM', () => {
+    const r = normalizeBaileysReaction({
+      key: { remoteJid: '4477@s.whatsapp.net', id: 'WA-R', fromMe: false },
+      messageTimestamp: 1715680800,
+      message: {
+        reactionMessage: { key: { id: 'WA-PARENT' }, text: '🔥' },
+      },
+    } as unknown as Parameters<typeof normalizeBaileysReaction>[0]);
+    expect(r?.targetWaMessageId).toBe('WA-PARENT');
+    expect(r?.emoji).toBe('🔥');
+    expect(r?.reactorJid).toBe('4477@s.whatsapp.net');
+  });
+
+  it('uses "me" for self-reactions in DMs and empty string for removed', () => {
+    const r = normalizeBaileysReaction({
+      key: { remoteJid: '4477@s.whatsapp.net', id: 'WA-R2', fromMe: true },
+      messageTimestamp: 1715680800,
+      message: { reactionMessage: { key: { id: 'WA-P2' }, text: '' } },
+    } as unknown as Parameters<typeof normalizeBaileysReaction>[0]);
+    expect(r?.reactorJid).toBe('me');
+    expect(r?.emoji).toBe('');
+  });
+
+  it('uses participant as reactorJid for group reactions', () => {
+    const r = normalizeBaileysReaction({
+      key: {
+        remoteJid: '120363@g.us',
+        id: 'WA-R3',
+        fromMe: false,
+        participant: '4477@s.whatsapp.net',
+      },
+      messageTimestamp: 1715680800,
+      message: { reactionMessage: { key: { id: 'WA-P3' }, text: '👍' } },
+    } as unknown as Parameters<typeof normalizeBaileysReaction>[0]);
+    expect(r?.reactorJid).toBe('4477@s.whatsapp.net');
   });
 });

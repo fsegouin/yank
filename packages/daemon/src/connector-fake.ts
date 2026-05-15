@@ -4,7 +4,11 @@ import type {
   ConnectorEvents,
   InboundChat,
   InboundContact,
+  InboundGroupMember,
   InboundMessage,
+  InboundPresence,
+  InboundReaction,
+  InboundReceipt,
   OutboundStatus,
   SendArgs,
   SendResult,
@@ -49,5 +53,17 @@ export class FakeConnector extends TypedEmitter<ConnectorEvents> implements Conn
   }
   completeHistory(): void {
     this.emit('history-complete');
+  }
+  pushReaction(r: InboundReaction): void {
+    this.emit('reaction', r);
+  }
+  pushPresence(p: InboundPresence): void {
+    this.emit('presence', p);
+  }
+  pushGroupMembers(chatJid: string, members: InboundGroupMember[]): void {
+    this.emit('group-members', chatJid, members);
+  }
+  pushReceipt(r: InboundReceipt): void {
+    this.emit('receipt', r);
   }
 }

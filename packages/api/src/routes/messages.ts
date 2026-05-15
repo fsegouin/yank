@@ -1,8 +1,8 @@
 import type { FastifyInstance } from 'fastify';
-import { and, desc, eq, lt } from 'drizzle-orm';
+import { and, desc, eq, lt, sql } from 'drizzle-orm';
 import type { Db } from '@yank/db';
 import { chats, contacts, messages } from '@yank/db/schema';
-import { newId } from '@yank/shared';
+import { newId, type Reaction } from '@yank/shared';
 import type { CommandsBus } from '../commands-bus.js';
 
 export interface MessagesDeps {
@@ -11,8 +11,11 @@ export interface MessagesDeps {
   commands: CommandsBus;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function registerMessagesRoutes(app: FastifyInstance<any, any, any, any>, deps: MessagesDeps): void {
+export function registerMessagesRoutes(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  app: FastifyInstance<any, any, any, any>,
+  deps: MessagesDeps,
+): void {
   app.get<{ Params: { id: string }; Querystring: { before?: string; limit?: string } }>(
     '/api/chats/:id/messages',
     async (req, reply) => {
@@ -67,14 +70,28 @@ export function registerMessagesRoutes(app: FastifyInstance<any, any, any, any>,
           senderDisplayName: contacts.displayName,
           senderPushName: contacts.pushName,
           senderBusinessName: contacts.businessName,
+          reactions: sql<unknown>`(
+            SELECT COALESCE(json_agg(json_build_object(
+              'emoji', emoji,
+              'count', cnt,
+              'mine', mine
+            ) ORDER BY last_ts), '[]'::json)
+            FROM (
+              SELECT
+                emoji,
+                COUNT(*)::int AS cnt,
+                bool_or(reactor_jid = 'me') AS mine,
+                MAX(ts) AS last_ts
+              FROM reactions
+              WHERE reactions.message_id = ${messages.id}
+              GROUP BY emoji
+            ) AS agg
+          )`,
         })
         .from(messages)
         .leftJoin(
           contacts,
-          and(
-            eq(contacts.userId, messages.userId),
-            eq(contacts.jid, messages.senderJid),
-          ),
+          and(eq(contacts.userId, messages.userId), eq(contacts.jid, messages.senderJid)),
         )
         .where(where)
         .orderBy(desc(messages.ts))
@@ -86,12 +103,7 @@ export function registerMessagesRoutes(app: FastifyInstance<any, any, any, any>,
 
       return {
         messages: page.map((r) => {
-          const {
-            senderDisplayName,
-            senderPushName,
-            senderBusinessName,
-            ...rest
-          } = r;
+          const { senderDisplayName, senderPushName, senderBusinessName, reactions, ...rest } = r;
           const senderName =
             r.senderJid === 'me'
               ? 'You'
@@ -101,7 +113,7 @@ export function registerMessagesRoutes(app: FastifyInstance<any, any, any, any>,
             ts: r.ts ? new Date(r.ts).toISOString() : null,
             editedAt: r.editedAt ? new Date(r.editedAt).toISOString() : null,
             deletedAt: r.deletedAt ? new Date(r.deletedAt).toISOString() : null,
-            reactions: [],
+            reactions: (reactions ?? []) as unknown as Reaction[],
             senderName,
           };
         }),

@@ -1,15 +1,27 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import type { Db } from '@yank/db';
 import { newId } from '@yank/shared';
 import {
   contacts,
   chats,
   chatAssignments,
+  groupMembers,
+  messageMedia,
   messages,
+  reactions,
   type Chat,
   type Message,
 } from '@yank/db/schema';
-import type { InboundChat, InboundContact, InboundMessage } from './connector.js';
+import type {
+  InboundChat,
+  InboundContact,
+  InboundGroupMember,
+  InboundMedia,
+  InboundMessage,
+  InboundReaction,
+  InboundReceipt,
+  PresenceStatus,
+} from './connector.js';
 
 export interface RepoCtx {
   db: Db;
@@ -82,6 +94,7 @@ export async function insertInbound(
   m: InboundMessage,
 ): Promise<InsertInboundResult> {
   const id = newId();
+  const previewBase = m.text ?? previewForKind(m.kind);
   const rows = await ctx.db
     .insert(messages)
     .values({
@@ -91,8 +104,9 @@ export async function insertInbound(
       waMessageId: m.waMessageId,
       senderJid: m.senderJid,
       ts: m.ts,
-      kind: 'text',
+      kind: m.kind,
       text: m.text,
+      deletedAt: m.deletedAt,
       status: m.fromMe ? 'sent' : 'delivered',
     })
     .onConflictDoNothing({ target: [messages.userId, messages.waMessageId] })
@@ -100,7 +114,7 @@ export async function insertInbound(
   if (rows[0]) {
     await ctx.db
       .update(chats)
-      .set({ lastMessageAt: m.ts, lastMessagePreview: m.text.slice(0, 140) })
+      .set({ lastMessageAt: m.ts, lastMessagePreview: previewBase.slice(0, 140) })
       .where(eq(chats.id, chatId));
     return { message: rows[0], duplicate: false };
   }
@@ -110,6 +124,171 @@ export async function insertInbound(
     .where(and(eq(messages.userId, ctx.userId), eq(messages.waMessageId, m.waMessageId)))
     .limit(1);
   return { message: existing[0]!, duplicate: true };
+}
+
+function previewForKind(kind: InboundMessage['kind']): string {
+  switch (kind) {
+    case 'image':
+      return '[image]';
+    case 'video':
+      return '[video]';
+    case 'audio':
+      return '[audio]';
+    case 'document':
+      return '[document]';
+    case 'sticker':
+      return '[sticker]';
+    case 'system':
+      return '';
+    default:
+      return '';
+  }
+}
+
+export async function insertMessageMedia(
+  ctx: RepoCtx,
+  messageId: string,
+  media: InboundMedia,
+): Promise<void> {
+  // The directPath/mediaKey are needed later by media-worker to decrypt + download.
+  // M3 only stores metadata; bytes arrive in M6. We park them in file_path as a JSON
+  // payload so a future migration can promote them to columns without re-pairing.
+  const pointer =
+    media.directPath || media.mediaKey
+      ? JSON.stringify({ directPath: media.directPath, mediaKey: media.mediaKey })
+      : null;
+  await ctx.db
+    .insert(messageMedia)
+    .values({
+      messageId,
+      mime: media.mime,
+      sizeBytes: media.sizeBytes || 0,
+      width: media.width ?? null,
+      height: media.height ?? null,
+      durationMs: media.durationMs ?? null,
+      filePath: pointer,
+      status: 'queued',
+    })
+    .onConflictDoNothing({ target: messageMedia.messageId });
+}
+
+export interface ReactionTarget {
+  id: string;
+  chatId: string;
+}
+
+export async function upsertReaction(
+  ctx: RepoCtx,
+  r: InboundReaction,
+): Promise<ReactionTarget | null> {
+  // Find the parent message by (userId, waMessageId).
+  const parent = await ctx.db
+    .select({ id: messages.id, chatId: messages.chatId })
+    .from(messages)
+    .where(and(eq(messages.userId, ctx.userId), eq(messages.waMessageId, r.targetWaMessageId)))
+    .limit(1);
+  const target = parent[0];
+  if (!target) return null;
+
+  if (r.emoji === '') {
+    await ctx.db
+      .delete(reactions)
+      .where(and(eq(reactions.messageId, target.id), eq(reactions.reactorJid, r.reactorJid)));
+  } else {
+    await ctx.db
+      .insert(reactions)
+      .values({
+        messageId: target.id,
+        reactorJid: r.reactorJid,
+        emoji: r.emoji,
+        ts: r.ts,
+      })
+      .onConflictDoUpdate({
+        target: [reactions.messageId, reactions.reactorJid],
+        set: { emoji: r.emoji, ts: r.ts },
+      });
+  }
+  return { id: target.id, chatId: target.chatId };
+}
+
+export async function syncGroupMembers(
+  ctx: RepoCtx,
+  chatJid: string,
+  members: InboundGroupMember[],
+): Promise<void> {
+  const chatRows = await ctx.db
+    .select({ id: chats.id })
+    .from(chats)
+    .where(and(eq(chats.userId, ctx.userId), eq(chats.jid, chatJid)))
+    .limit(1);
+  const chatId = chatRows[0]?.id;
+  if (!chatId) return;
+
+  await ctx.db.transaction(async (tx) => {
+    await tx.delete(groupMembers).where(eq(groupMembers.chatId, chatId));
+    if (members.length === 0) return;
+    await tx.insert(groupMembers).values(
+      members.map((m) => ({
+        chatId,
+        jid: m.jid,
+        role: m.role,
+      })),
+    );
+  });
+}
+
+export async function updatePresence(
+  ctx: RepoCtx,
+  jid: string,
+  status: PresenceStatus,
+  lastSeen?: Date,
+): Promise<void> {
+  if (status !== 'unavailable' || !lastSeen) return;
+  await ctx.db
+    .update(contacts)
+    .set({ lastSeenAt: lastSeen })
+    .where(and(eq(contacts.userId, ctx.userId), eq(contacts.jid, jid)));
+}
+
+const STATUS_RANK: Record<'pending' | 'sent' | 'delivered' | 'read' | 'failed', number> = {
+  pending: 0,
+  sent: 1,
+  delivered: 2,
+  read: 3,
+  failed: 4,
+};
+
+export interface ApplyReceiptResult {
+  messageId: string;
+  status: 'delivered' | 'read';
+}
+
+export async function applyReceipt(
+  ctx: RepoCtx,
+  r: InboundReceipt,
+): Promise<ApplyReceiptResult | null> {
+  // Only promote, never demote: sent → delivered → read.
+  const newRank = STATUS_RANK[r.status];
+  const rows = await ctx.db
+    .update(messages)
+    .set({ status: r.status })
+    .where(
+      and(
+        eq(messages.userId, ctx.userId),
+        eq(messages.waMessageId, r.waMessageId),
+        sql`CASE ${messages.status}
+              WHEN 'pending' THEN 0
+              WHEN 'sent' THEN 1
+              WHEN 'delivered' THEN 2
+              WHEN 'read' THEN 3
+              WHEN 'failed' THEN 4
+            END < ${newRank}`,
+      ),
+    )
+    .returning({ id: messages.id });
+  const row = rows[0];
+  if (!row) return null;
+  return { messageId: row.id, status: r.status };
 }
 
 export async function insertPendingOutbound(

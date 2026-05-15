@@ -15,14 +15,59 @@ export interface InboundChat {
   subject?: string;
 }
 
+export interface InboundMedia {
+  mime: string;
+  sizeBytes: number;
+  width?: number;
+  height?: number;
+  durationMs?: number;
+  fileName?: string;
+  // URL pointers — actual download deferred until media-worker / lazy fetch.
+  directPath?: string;
+  mediaKey?: string; // Baileys uses these to decrypt later
+}
+
 export interface InboundMessage {
   waMessageId: string;
   chatJid: string;
   senderJid: string;
   fromMe: boolean;
   ts: Date;
-  text: string;
+  kind: 'text' | 'image' | 'video' | 'audio' | 'document' | 'sticker' | 'system';
+  text: string | null;
   quotedWaId?: string;
+  media?: InboundMedia;
+  deletedAt?: Date;
+}
+
+export interface InboundReaction {
+  chatJid: string;
+  targetWaMessageId: string;
+  reactorJid: string;
+  emoji: string; // empty string means removed
+  ts: Date;
+}
+
+export type PresenceStatus = 'available' | 'unavailable' | 'composing' | 'paused' | 'recording';
+
+export interface InboundPresence {
+  jid: string;
+  status: PresenceStatus;
+  lastSeen?: Date;
+}
+
+export type GroupMemberRole = 'member' | 'admin' | 'superadmin';
+
+export interface InboundGroupMember {
+  jid: string;
+  role: GroupMemberRole;
+}
+
+export interface InboundReceipt {
+  waMessageId: string;
+  status: 'delivered' | 'read';
+  participantJid?: string;
+  ts: Date;
 }
 
 export interface OutboundStatus {
@@ -41,6 +86,10 @@ export interface ConnectorEvents {
   chat: (chat: InboundChat) => void;
   contact: (contact: InboundContact) => void;
   status: (info: OutboundStatus) => void;
+  reaction: (reaction: InboundReaction) => void;
+  presence: (update: InboundPresence) => void;
+  'group-members': (chatJid: string, members: InboundGroupMember[]) => void;
+  receipt: (receipt: InboundReceipt) => void;
 }
 
 export interface SendArgs {

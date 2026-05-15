@@ -9,10 +9,12 @@ import {
   messages,
   readState,
 } from '@yank/db/schema';
+import type { EventsPublisher } from '../events-publisher.js';
 
 export interface ChatsDeps {
   db: Db;
   userId: string;
+  events?: EventsPublisher;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -6,6 +6,7 @@ import { registerHealthz } from './healthz.js';
 import { ensureSingleUser } from './bootstrap.js';
 import { createCommandsBus } from './commands-bus.js';
 import { createEventsBus } from './events-bus.js';
+import { createEventsPublisher } from './events-publisher.js';
 import { registerEventsRoute } from './routes/events.js';
 import { registerSetupRoutes } from './routes/setup.js';
 import { registerChatsRoutes } from './routes/chats.js';
@@ -28,12 +29,13 @@ await ensureSingleUser(db, env.YANK_USER_ID);
 const eventsBus = createEventsBus(subscriber, env.YANK_USER_ID);
 await eventsBus.start();
 const commandsBus = createCommandsBus(redis, env.YANK_USER_ID);
+const eventsPublisher = createEventsPublisher(redis, env.YANK_USER_ID);
 
 const app = Fastify({ loggerInstance: log });
 registerHealthz(app, { db, redis });
 registerEventsRoute(app, { bus: eventsBus });
 registerSetupRoutes(app, { db, userId: env.YANK_USER_ID, commands: commandsBus });
-registerChatsRoutes(app, { db, userId: env.YANK_USER_ID });
+registerChatsRoutes(app, { db, userId: env.YANK_USER_ID, events: eventsPublisher });
 registerMessagesRoutes(app, { db, userId: env.YANK_USER_ID, commands: commandsBus });
 registerMediaRoutes(app, { db, userId: env.YANK_USER_ID, commands: commandsBus });
 

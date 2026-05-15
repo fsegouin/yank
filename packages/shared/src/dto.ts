@@ -102,3 +102,16 @@ export const SendMessageBodySchema = z.object({
   replyToId: Uuid.optional(),
 });
 export type SendMessageBody = z.infer<typeof SendMessageBodySchema>;
+
+export const AssignmentBodySchema = z.object({ workspace: WorkspaceSchema });
+export type AssignmentBody = z.infer<typeof AssignmentBodySchema>;
+
+export const ContactRenameBodySchema = z.object({
+  displayName: z.string().trim().min(1).max(80),
+});
+export type ContactRenameBody = z.infer<typeof ContactRenameBodySchema>;
+
+export const EditMessageBodySchema = z.object({
+  text: z.string().min(1).max(65000),
+});
+export type EditMessageBody = z.infer<typeof EditMessageBodySchema>;

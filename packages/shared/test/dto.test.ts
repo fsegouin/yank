@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { ChatSchema, MessageSchema, MessagesPageSchema, ChatMemberSchema } from '../src/dto.js';
+import {
+  ChatSchema,
+  MessageSchema,
+  MessagesPageSchema,
+  ChatMemberSchema,
+  AssignmentBodySchema,
+  ContactRenameBodySchema,
+  EditMessageBodySchema,
+} from '../src/dto.js';
 
 describe('DTO schemas', () => {
   it('parses a valid Chat', () => {
@@ -76,5 +84,27 @@ describe('DTO schemas', () => {
       status: 'sent',
       reactions: [{ emoji: '👀', count: 2, mine: false }],
     });
+  });
+});
+
+describe('M4 DTO schemas', () => {
+  it('AssignmentBodySchema accepts valid workspace', () => {
+    expect(AssignmentBodySchema.parse({ workspace: 'work' }).workspace).toBe('work');
+    expect(AssignmentBodySchema.parse({ workspace: 'triage' }).workspace).toBe('triage');
+  });
+
+  it('AssignmentBodySchema rejects unknown workspace', () => {
+    expect(() => AssignmentBodySchema.parse({ workspace: 'archive' })).toThrow();
+  });
+
+  it('ContactRenameBodySchema enforces non-empty trimmed name within 80 chars', () => {
+    expect(ContactRenameBodySchema.parse({ displayName: 'Alice' }).displayName).toBe('Alice');
+    expect(() => ContactRenameBodySchema.parse({ displayName: '' })).toThrow();
+    expect(() => ContactRenameBodySchema.parse({ displayName: 'a'.repeat(81) })).toThrow();
+  });
+
+  it('EditMessageBodySchema enforces non-empty text', () => {
+    expect(EditMessageBodySchema.parse({ text: 'hi' }).text).toBe('hi');
+    expect(() => EditMessageBodySchema.parse({ text: '' })).toThrow();
   });
 });

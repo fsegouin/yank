@@ -13,6 +13,8 @@ const NAMED_EVENTS = [
   'sync-complete',
   'message',
   'status',
+  'pair-code',
+  'media-ready',
 ] as const;
 
 export interface UseEventStreamOptions {
@@ -50,7 +52,12 @@ export function useEventStream(opts: UseEventStreamOptions = {}): void {
           qc.invalidateQueries({ queryKey: queryKeys.chats() });
           qc.invalidateQueries({ queryKey: ['setup-status'] });
           return;
-        // qr / sync-progress are consumed via onEvent by the setup screen.
+        case 'media-ready':
+          // Media bytes are now available; force the messages caches to refetch so
+          // the message rows pick up the populated media.url.
+          qc.invalidateQueries({ queryKey: ['messages'] });
+          return;
+        // qr / sync-progress / pair-code are consumed via onEvent by the setup screen.
         default:
           return;
       }

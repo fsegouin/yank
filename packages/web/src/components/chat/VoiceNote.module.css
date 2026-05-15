@@ -8,6 +8,16 @@
   border-radius: 20px;
   background: var(--bg-1);
   max-width: 340px;
+  /* Reset button defaults so the same rule works for both <div> and <button> */
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+.voice:disabled {
+  cursor: progress;
+  opacity: 0.85;
 }
 .play {
   width: 26px;
@@ -39,4 +49,9 @@
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--fg-2);
+}
+.hint {
+  font-size: var(--fs-meta);
+  color: var(--fg-2);
+  margin-left: auto;
 }

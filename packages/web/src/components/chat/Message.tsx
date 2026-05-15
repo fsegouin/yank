@@ -96,11 +96,15 @@ export function MessageRow({
           />
         )}
         <MessageText text={message.text} />
-        {message.media && message.kind === 'image' && <MediaImage media={message.media} />}
-        {message.media && message.kind === 'document' && (
-          <DocCard media={message.media} name={message.text ?? 'file'} />
+        {message.media && message.kind === 'image' && (
+          <MediaImage messageId={message.id} media={message.media} />
         )}
-        {message.media && message.kind === 'audio' && <VoiceNote media={message.media} />}
+        {message.media && message.kind === 'document' && (
+          <DocCard messageId={message.id} media={message.media} name={message.text ?? 'file'} />
+        )}
+        {message.media && message.kind === 'audio' && (
+          <VoiceNote messageId={message.id} media={message.media} />
+        )}
         {message.reactions.length > 0 && (
           <Reactions
             reactions={message.reactions}

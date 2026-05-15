@@ -1,8 +1,7 @@
-import { PlayIcon } from '../icons/index.js';
 import type { Media } from '@yank/shared';
+import { useMediaLoad } from '../../hooks/useMediaLoad.js';
+import { PlayIcon } from '../icons/index.js';
 import styles from './VoiceNote.module.css';
-
-const BARS = 40;
 
 function fmtDur(ms: number): string {
   const total = Math.round(ms / 1000);
@@ -11,18 +10,34 @@ function fmtDur(ms: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export function VoiceNote({ media }: { media: Media }) {
-  return (
-    <div className={styles.voice}>
-      <button type="button" className={styles.play}>
-        <PlayIcon size={10} />
-      </button>
-      <div className={styles.wave} aria-hidden="true">
-        {Array.from({ length: BARS }).map((_, i) => (
-          <span key={i} style={{ height: 5 + Math.abs(Math.sin(i * 1.3)) * 14 }} />
-        ))}
+interface Props {
+  messageId: string;
+  media: Media;
+}
+
+export function VoiceNote({ messageId, media }: Props) {
+  const { triggered, trigger } = useMediaLoad(messageId, media.status);
+
+  if (media.status === 'ready' && media.url) {
+    return (
+      <div className={styles.voice}>
+        <audio src={media.url} controls preload="none" style={{ height: 32 }} />
+        <span className={styles.dur + ' mono'}>{fmtDur(media.durationMs ?? 0)}</span>
       </div>
+    );
+  }
+
+  const busy = triggered || media.status === 'downloading';
+
+  return (
+    <button type="button" className={styles.voice} onClick={trigger} disabled={busy}>
+      <span className={styles.play}>
+        <PlayIcon size={10} />
+      </span>
       <span className={styles.dur + ' mono'}>{fmtDur(media.durationMs ?? 0)}</span>
-    </div>
+      <span className={styles.hint}>
+        {busy ? 'loading…' : media.status === 'failed' ? 'failed (tap to retry)' : 'tap to load'}
+      </span>
+    </button>
   );
 }

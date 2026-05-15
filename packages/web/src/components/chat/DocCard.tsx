@@ -1,4 +1,5 @@
 import type { Media } from '@yank/shared';
+import { useMediaLoad } from '../../hooks/useMediaLoad.js';
 import styles from './DocCard.module.css';
 
 function ext(mime: string): string {
@@ -12,14 +13,49 @@ function fmtBytes(n: number): string {
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
-export function DocCard({ media, name }: { media: Media; name: string }) {
+interface Props {
+  messageId: string;
+  media: Media;
+  name: string;
+}
+
+export function DocCard({ messageId, media, name }: Props) {
+  const { triggered, trigger } = useMediaLoad(messageId, media.status);
+
+  if (media.status === 'ready' && media.url) {
+    return (
+      <a
+        href={media.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        download={name}
+        className={styles.doc}
+      >
+        <div className={styles.ext}>{ext(media.mime)}</div>
+        <div>
+          <div className={styles.name}>{name}</div>
+          <div className={styles.size + ' mono'}>{fmtBytes(media.sizeBytes)}</div>
+        </div>
+      </a>
+    );
+  }
+
+  const busy = triggered || media.status === 'downloading';
+
   return (
-    <div className={styles.doc}>
+    <button type="button" className={styles.doc} onClick={trigger} disabled={busy}>
       <div className={styles.ext}>{ext(media.mime)}</div>
       <div>
         <div className={styles.name}>{name}</div>
-        <div className={styles.size + ' mono'}>{fmtBytes(media.sizeBytes)}</div>
+        <div className={styles.size + ' mono'}>
+          {fmtBytes(media.sizeBytes)}
+          {busy
+            ? ' · downloading…'
+            : media.status === 'failed'
+              ? ' · failed (tap to retry)'
+              : ' · tap to download'}
+        </div>
       </div>
-    </div>
+    </button>
   );
 }

@@ -1,15 +1,59 @@
+import { useEffect, useRef, useState } from 'react';
 import type { Media } from '@yank/shared';
+import { useMediaLoad } from '../../hooks/useMediaLoad.js';
 import styles from './MediaImage.module.css';
 
-export function MediaImage({ media }: { media: Media }) {
+interface Props {
+  messageId: string;
+  media: Media;
+}
+
+export function MediaImage({ messageId, media }: Props) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [inView, setInView] = useState(false);
+  const { trigger } = useMediaLoad(messageId, media.status);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || inView) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) setInView(true);
+      },
+      { rootMargin: '200px' },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [inView]);
+
+  useEffect(() => {
+    if (!inView) return;
+    if (media.status === 'queued') trigger();
+  }, [inView, media.status, trigger]);
+
   const aspect = media.width && media.height ? `${media.width} / ${media.height}` : '4 / 3';
+
   return (
-    <div className={styles.grid}>
+    <div className={styles.grid} ref={ref}>
       <div className={styles.tile} style={{ aspectRatio: aspect }}>
-        {media.thumbnailUrl ? (
-          <img src={media.thumbnailUrl} alt="" loading="lazy" />
+        {media.status === 'ready' && media.url ? (
+          <img
+            src={media.url}
+            alt=""
+            loading="lazy"
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        ) : media.status === 'failed' ? (
+          <div className={styles.placeholder}>
+            <span>Image failed</span>
+            <button type="button" onClick={trigger} className={styles.retry}>
+              Retry
+            </button>
+          </div>
         ) : (
-          <span className={styles.placeholder}>image · {media.status}</span>
+          <span className={styles.placeholder}>
+            {media.status === 'downloading' ? 'Loading…' : inView ? 'Queued…' : ''}
+          </span>
         )}
       </div>
     </div>

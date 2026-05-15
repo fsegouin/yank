@@ -40,7 +40,7 @@ export function MessageList({ chatId, onOpenThread }: Props) {
     return map;
   }, [members]);
 
-  const ref = useAutoScroll<HTMLDivElement>(messages.length);
+  const ref = useAutoScroll<HTMLDivElement>(chatId, messages.length);
 
   useEffect(() => {
     const el = ref.current;

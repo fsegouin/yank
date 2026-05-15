@@ -2,13 +2,15 @@ import type { FastifyInstance } from 'fastify';
 import { and, desc, eq, lt, sql } from 'drizzle-orm';
 import type { Db } from '@yank/db';
 import { chats, contacts, messageMedia, messages } from '@yank/db/schema';
-import { newId, type Reaction } from '@yank/shared';
+import { newId, type Reaction, EditMessageBodySchema } from '@yank/shared';
 import type { CommandsBus } from '../commands-bus.js';
+import type { EventsPublisher } from '../events-publisher.js';
 
 export interface MessagesDeps {
   db: Db;
   userId: string;
   commands: CommandsBus;
+  eventsPublisher?: EventsPublisher;
 }
 
 export function registerMessagesRoutes(
@@ -208,6 +210,59 @@ export function registerMessagesRoutes(
 
       reply.code(202);
       return inserted[0];
+    },
+  );
+
+  app.post<{ Params: { messageId: string }; Body: { text: string } }>(
+    '/api/messages/:messageId/edit',
+    async (req, reply) => {
+      const parsed = EditMessageBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: 'invalid_body', issues: parsed.error.issues });
+      }
+      const { text } = parsed.data;
+
+      const row = await deps.db
+        .select({
+          id: messages.id,
+          waMessageId: messages.waMessageId,
+          senderJid: messages.senderJid,
+          chatId: messages.chatId,
+        })
+        .from(messages)
+        .where(and(eq(messages.userId, deps.userId), eq(messages.id, req.params.messageId)))
+        .limit(1);
+
+      if (!row[0]) return reply.code(404).send({ error: 'not_found' });
+
+      const msg = row[0];
+      if (msg.senderJid !== 'me') {
+        return reply.code(403).send({ error: 'not_own_message' });
+      }
+      if (!msg.waMessageId) {
+        return reply.code(409).send({ error: 'message_still_sending' });
+      }
+
+      // Look up the chat's JID for the daemon
+      const chatRow = await deps.db
+        .select({ jid: chats.jid })
+        .from(chats)
+        .where(and(eq(chats.userId, deps.userId), eq(chats.id, msg.chatId)))
+        .limit(1);
+
+      if (!chatRow[0]) return reply.code(404).send({ error: 'chat_not_found' });
+
+      await deps.commands.publish({
+        type: 'edit-message',
+        userId: deps.userId,
+        messageId: msg.id,
+        waMessageId: msg.waMessageId,
+        chatJid: chatRow[0].jid,
+        text,
+      });
+
+      reply.code(202);
+      return null;
     },
   );
 }

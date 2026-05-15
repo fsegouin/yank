@@ -37,7 +37,7 @@ registerHealthz(app, { db, redis });
 registerEventsRoute(app, { bus: eventsBus });
 registerSetupRoutes(app, { db, userId: env.YANK_USER_ID, commands: commandsBus });
 registerChatsRoutes(app, { db, userId: env.YANK_USER_ID, events: eventsPublisher });
-registerMessagesRoutes(app, { db, userId: env.YANK_USER_ID, commands: commandsBus });
+registerMessagesRoutes(app, { db, userId: env.YANK_USER_ID, commands: commandsBus, eventsPublisher });
 registerMediaRoutes(app, { db, userId: env.YANK_USER_ID, commands: commandsBus });
 registerContactsRoutes(app, { db, userId: env.YANK_USER_ID, eventsPublisher });
 

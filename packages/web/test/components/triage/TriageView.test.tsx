@@ -52,8 +52,9 @@ describe('TriageView', () => {
       makeChat('b1ee0d52-2c8e-7e7a-a4cf-000000000001', 'triage', 'Alice'),
       makeChat('b1ee0d52-2c8e-7e7a-a4cf-000000000002', 'work', 'Bob'),
     ]);
-    await waitFor(() => screen.getByText('Alice'));
-    expect(screen.queryByText('Bob')).not.toBeInTheDocument();
+    // DM chats render the name in an InlineRename input — use getByDisplayValue
+    await waitFor(() => screen.getByDisplayValue('Alice'));
+    expect(screen.queryByDisplayValue('Bob')).not.toBeInTheDocument();
   });
 
   it('renders empty state when no triage chats', async () => {
@@ -69,7 +70,8 @@ describe('TriageView', () => {
   it('clicking Work on a card triggers assignment mutation', async () => {
     const user = userEvent.setup();
     renderView([makeChat('b1ee0d52-2c8e-7e7a-a4cf-000000000001', 'triage', 'Alice')]);
-    await waitFor(() => screen.getByText('Alice'));
+    // DM chats render the name in an InlineRename input — use getByDisplayValue
+    await waitFor(() => screen.getByDisplayValue('Alice'));
     await user.click(screen.getByRole('button', { name: /work/i }));
     // Optimistic patch moves chat out of triage — empty state appears
     await waitFor(() => screen.getByText('Triage clear'));

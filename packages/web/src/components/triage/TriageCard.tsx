@@ -1,10 +1,14 @@
 import type { Chat, Workspace } from '@yank/shared';
 import { avatarGradient } from '../../utils/avatarGradient.js';
+import { InlineRename } from '../primitives/InlineRename.js';
+import { useUpdateContactName } from '../../lib/mutations.js';
 import styles from './TriageCard.module.css';
 
 interface TriageCardProps {
   chat: Chat;
-  focused: boolean;
+  /** @deprecated Use isFocused. Both accepted for backward compatibility. */
+  focused?: boolean;
+  isFocused?: boolean;
   onAssign: (workspace: Workspace) => void;
 }
 
@@ -13,16 +17,19 @@ function initials(subject: string | null, jid: string): string {
   return name.slice(0, 2).toUpperCase();
 }
 
-export function TriageCard({ chat, focused, onAssign }: TriageCardProps) {
+export function TriageCard({ chat, focused, isFocused, onAssign }: TriageCardProps) {
   const label = chat.subject ?? chat.jid;
   const ts = chat.lastMessageAt
     ? new Date(chat.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : '';
+  const isFocusedEffective = isFocused ?? focused ?? false;
+
+  const updateContactName = useUpdateContactName(chat.jid);
 
   return (
     <div
       className={styles.card}
-      data-focused={focused ? 'true' : 'false'}
+      data-focused={isFocusedEffective ? 'true' : 'false'}
       role="article"
       aria-label={label}
     >
@@ -32,7 +39,15 @@ export function TriageCard({ chat, focused, onAssign }: TriageCardProps) {
 
       <div className={styles.body}>
         <div className={styles.header}>
-          <span className={styles.who}>{label}</span>
+          {chat.type === 'dm' ? (
+            <InlineRename
+              initialValue={chat.subject ?? ''}
+              onCommit={(displayName) => updateContactName.mutate({ displayName })}
+              maxLength={80}
+            />
+          ) : (
+            <span className={styles.who}>{label}</span>
+          )}
           {ts && <span className={styles.whoMeta}>· {ts}</span>}
         </div>
         {chat.lastMessagePreview && (

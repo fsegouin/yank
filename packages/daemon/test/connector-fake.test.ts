@@ -1,6 +1,29 @@
 import { describe, it, expect, vi } from 'vitest';
 import { FakeConnector } from '../src/connector-fake.js';
 
+describe('FakeConnector.editMessage', () => {
+  it('records the call in editCalls', async () => {
+    const fc = new FakeConnector();
+    await fc.editMessage('447@s.whatsapp.net', 'WA-123', 'new text');
+    expect(fc.editCalls).toHaveLength(1);
+    expect(fc.editCalls[0]).toEqual({ jid: '447@s.whatsapp.net', waMessageId: 'WA-123', text: 'new text' });
+  });
+
+  it('throws when editError is set', async () => {
+    const fc = new FakeConnector();
+    fc.editError = new Error('too old');
+    await expect(fc.editMessage('447@s.whatsapp.net', 'WA-123', 'text')).rejects.toThrow('too old');
+  });
+
+  it('records multiple calls independently', async () => {
+    const fc = new FakeConnector();
+    await fc.editMessage('j1', 'id1', 't1');
+    await fc.editMessage('j2', 'id2', 't2');
+    expect(fc.editCalls).toHaveLength(2);
+    expect(fc.editCalls[1]).toMatchObject({ jid: 'j2', waMessageId: 'id2', text: 't2' });
+  });
+});
+
 describe('FakeConnector', () => {
   it('emits qr → open on requestPair', async () => {
     const c = new FakeConnector();

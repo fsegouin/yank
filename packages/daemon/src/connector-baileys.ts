@@ -516,9 +516,13 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
     }
   }
 
-  // TODO(3a.3): implement with Baileys protocolMessage EDIT
-  async editMessage(_chatJid: string, _waMessageId: string, _text: string): Promise<void> {
-    throw new Error('editMessage not yet implemented in BaileysConnector');
+  async editMessage(chatJid: string, waMessageId: string, text: string): Promise<void> {
+    const sock = this.sock;
+    if (!sock) throw new Error('connector not started');
+    await sock.sendMessage(chatJid, {
+      text,
+      edit: { remoteJid: chatJid, id: waMessageId, fromMe: true },
+    });
   }
 }
 

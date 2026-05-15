@@ -11,6 +11,7 @@ export function useKeyboardShortcuts(): void {
   const navigate = useNavigate();
   const router = useRouter();
   const togglePalette = useUiStore((s) => s.togglePalette);
+  const openPalette = useUiStore((s) => s.openPalette);
   const setWorkspace = useUiStore((s) => s.setWorkspace);
   const openThreadId = useUiStore((s) => s.openThreadId);
   const closeThread = useUiStore((s) => s.closeThread);
@@ -30,6 +31,11 @@ export function useKeyboardShortcuts(): void {
       if (mod && e.key.toLowerCase() === 'k' && !e.shiftKey) {
         e.preventDefault();
         togglePalette();
+        return;
+      }
+      if (mod && e.key.toLowerCase() === 't' && !e.shiftKey) {
+        e.preventDefault();
+        openPalette('chats-only');
         return;
       }
       if (mod && !e.shiftKey && (e.key === '1' || e.key === '2' || e.key === '3')) {
@@ -70,6 +76,7 @@ export function useKeyboardShortcuts(): void {
     navigate,
     router,
     togglePalette,
+    openPalette,
     setWorkspace,
     paletteOpen,
     openThreadId,

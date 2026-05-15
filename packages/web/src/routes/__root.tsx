@@ -20,6 +20,7 @@ function RootLayout() {
 
   const openThreadId = useUiStore((s) => s.openThreadId);
   const paletteOpen = useUiStore((s) => s.paletteOpen);
+  const paletteMode = useUiStore((s) => s.paletteMode);
 
   return (
     <div
@@ -29,7 +30,7 @@ function RootLayout() {
       <Rail />
       <Sidebar />
       <Outlet />
-      {paletteOpen && <CommandPalette />}
+      {paletteOpen && <CommandPalette mode={paletteMode ?? undefined} />}
       <UndoToast />
     </div>
   );

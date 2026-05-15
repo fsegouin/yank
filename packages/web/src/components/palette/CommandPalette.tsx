@@ -113,7 +113,7 @@ export function CommandPalette({ mode }: CommandPaletteProps = {}) {
         <input
           ref={inputRef}
           className={styles.input}
-          placeholder="Jump to chat, run command…"
+          placeholder={mode === 'chats-only' ? 'Jump to chat…' : 'Jump to chat, run command…'}
           value={q}
           onChange={(e) => {
             setQ(e.target.value);

@@ -3,6 +3,7 @@ import {
   MessageSchema,
   type Chat,
   type Message,
+  type MessagesPage,
   type SendMessageBody,
   type Workspace,
 } from '@yank/shared';
@@ -148,6 +149,45 @@ export function useUpdateContactName(contactJid: string) {
         qc.setQueryData(queryKeys.contact(contactJid), ctx.prevContact);
       }
       showErrorToast("Couldn't rename contact — try again.");
+    },
+  });
+}
+
+export function useEditMessage(chatId: string, messageId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ text }: { text: string }) =>
+      apiFetch<void>(`/api/messages/${messageId}/edit`, { method: 'POST', body: { text } }),
+    onMutate: ({ text }) => {
+      void qc.cancelQueries({ queryKey: queryKeys.messages(chatId) });
+      const prev = qc.getQueryData<{ pages: MessagesPage[]; pageParams: unknown[] }>(
+        queryKeys.messages(chatId),
+      );
+
+      const optimisticEditedAt = new Date().toISOString();
+      qc.setQueryData<{ pages: MessagesPage[]; pageParams: unknown[] }>(
+        queryKeys.messages(chatId),
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              messages: page.messages.map((m) =>
+                m.id === messageId ? { ...m, text, editedAt: optimisticEditedAt } : m,
+              ),
+            })),
+          };
+        },
+      );
+
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev !== undefined) {
+        qc.setQueryData(queryKeys.messages(chatId), ctx.prev);
+      }
+      showErrorToast("Couldn't edit message — try again.");
     },
   });
 }

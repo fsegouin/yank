@@ -6,7 +6,7 @@ import type { Logger } from '@yank/shared';
 import type { Connector } from './connector.js';
 import { createEventsBus } from './events-bus.js';
 import { attachInbound } from './ingest.js';
-import { attachOutbound, handleSendCommand } from './outbound.js';
+import { attachOutbound, handleSendCommand, handleEditMessageCommand } from './outbound.js';
 import { startCommandsConsumer } from './commands-consumer.js';
 import { handleDownloadCommand } from './download.js';
 
@@ -114,6 +114,11 @@ export function createSession(deps: SessionDeps): Session {
             await deps.connector.requestPair(cmd.method, cmd.phoneNumber);
           } else if (cmd.type === 'send') {
             await handleSendCommand(
+              { db, userId: deps.userId, connector: deps.connector, bus },
+              cmd,
+            );
+          } else if (cmd.type === 'edit-message') {
+            await handleEditMessageCommand(
               { db, userId: deps.userId, connector: deps.connector, bus },
               cmd,
             );

@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { DaemonEventSchema, type DaemonEvent, type Chat, type MessagesPage } from '@yank/shared';
 import { queryKeys } from './queryKeys.js';
 import { useEditErrorsStore } from '../state/editErrors.js';
+import { useMediaBreakerStore } from '../state/mediaBreaker.js';
 
 const BACKOFF_INITIAL_MS = 1_000;
 const BACKOFF_MAX_MS = 30_000;
@@ -20,6 +21,7 @@ const NAMED_EVENTS = [
   'contact-update',
   'message-edit',
   'message-edit-failed',
+  'media-breaker-state',
 ] as const;
 
 export interface UseEventStreamOptions {
@@ -113,6 +115,12 @@ export function useEventStream(opts: UseEventStreamOptions = {}): void {
           useEditErrorsStore.getState().setError(evt.messageId);
           return;
         }
+        case 'media-breaker-state':
+          useMediaBreakerStore.getState().setBreakerState({
+            state: evt.state,
+            retryAt: evt.retryAt,
+          });
+          return;
         // qr / sync-progress / pair-code are consumed via onEvent by the setup screen.
         default:
           return;

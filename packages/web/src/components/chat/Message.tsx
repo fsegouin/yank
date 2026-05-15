@@ -42,7 +42,7 @@ export function MessageRow({
   senderInitials,
   onOpenThread,
   onReact,
-  onStar,
+  onStar: _onStar,
   inThread = false,
   reply,
   chatId = '',

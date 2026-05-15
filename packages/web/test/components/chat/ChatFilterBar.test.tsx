@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ChatFilterBar } from '../../../src/components/chat/ChatFilterBar.js';
@@ -79,7 +79,6 @@ describe('ChatFilterBar', () => {
     setup();
     useUiStore.setState({ chatFilter: { open: true, query: 'hello', hitIndex: 1 } });
     const user = userEvent.setup();
-    const input = screen.getByPlaceholderText(/search messages/i);
     // re-render with existing query
     render(<ChatFilterBar chatId="c1" messages={messages} />);
     await user.keyboard('{Shift>}{Enter}{/Shift}');
@@ -89,7 +88,6 @@ describe('ChatFilterBar', () => {
   it('Esc closes the bar', async () => {
     setup();
     const user = userEvent.setup();
-    const input = screen.getByPlaceholderText(/search messages/i);
     await user.keyboard('{Escape}');
     expect(useUiStore.getState().chatFilter.open).toBe(false);
   });

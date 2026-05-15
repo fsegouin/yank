@@ -46,12 +46,6 @@ describe('useKeyboardShortcuts — Cmd-F', () => {
     const ta = document.createElement('textarea');
     document.body.appendChild(ta);
     ta.focus();
-    const event = new KeyboardEvent('keydown', {
-      key: 'f',
-      metaKey: true,
-      bubbles: true,
-      target: ta as EventTarget,
-    } as KeyboardEventInit);
     // dispatch on the element so the target is correct
     ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', metaKey: true, bubbles: true }));
     // The handler checks target tag — this fires on ta which is TEXTAREA, so it's suppressed

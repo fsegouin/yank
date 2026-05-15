@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeAll, afterAll, afterEach } from 'vitest';
+import { describe, expect, it, beforeAll, afterAll, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { setupServer } from 'msw/node';

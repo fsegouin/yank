@@ -228,7 +228,7 @@ export function registerChatsRoutes(app: FastifyInstance<any, any, any, any>, de
           lastReadMessageId: msg.id,
           lastReadTs: msg.ts,
         },
-        setWhere: sql`${readState.lastReadTs} < ${msg.ts} OR ${readState.lastReadTs} IS NULL`,
+        setWhere: sql`${readState.lastReadTs} < ${msg.ts.toISOString()} OR ${readState.lastReadTs} IS NULL`,
       });
 
     reply.code(204);

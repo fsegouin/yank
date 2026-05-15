@@ -6,9 +6,17 @@ export interface ToastPayload {
   durationMs?: number;
 }
 
+export interface SimpleToastPayload {
+  label: string;
+  kind: 'error' | 'info' | 'success';
+  durationMs?: number;
+}
+
 interface ToastState {
   toast: ToastPayload | null;
+  simpleToast: SimpleToastPayload | null;
   showUndoToast: (payload: ToastPayload) => void;
+  show: (payload: SimpleToastPayload) => void;
   clear: () => void;
 }
 
@@ -16,6 +24,7 @@ let dismissTimer: ReturnType<typeof setTimeout> | null = null;
 
 export const useToastStore = create<ToastState>((set) => ({
   toast: null,
+  simpleToast: null,
 
   showUndoToast({ label, onUndo, durationMs = 5000 }) {
     if (dismissTimer !== null) {
@@ -29,6 +38,13 @@ export const useToastStore = create<ToastState>((set) => ({
     }, durationMs);
   },
 
+  show({ label, kind, durationMs = 4000 }) {
+    set({ simpleToast: { label, kind, durationMs } });
+    setTimeout(() => {
+      set({ simpleToast: null });
+    }, durationMs);
+  },
+
   clear() {
     if (dismissTimer !== null) {
       clearTimeout(dismissTimer);
@@ -37,3 +53,7 @@ export const useToastStore = create<ToastState>((set) => ({
     set({ toast: null });
   },
 }));
+
+export function showErrorToast(label: string): void {
+  useToastStore.getState().show({ label, kind: 'error' });
+}

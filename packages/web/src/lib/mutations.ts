@@ -8,7 +8,7 @@ import {
 } from '@yank/shared';
 import { apiFetch } from './api.js';
 import { queryKeys } from './queryKeys.js';
-import { useToastStore } from '../state/toast.js';
+import { showErrorToast, useToastStore } from '../state/toast.js';
 
 export function useSendMessage(chatId: string) {
   const qc = useQueryClient();
@@ -105,5 +105,49 @@ export function useAssignWorkspace(chatId: string) {
       }
     },
     // onSettled deliberately omitted: SSE chat-assignment reconciles the cache.
+  });
+}
+
+export function useUpdateContactName(contactJid: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ displayName }: { displayName: string }) =>
+      apiFetch<void>(`/api/contacts/${encodeURIComponent(contactJid)}`, {
+        method: 'PATCH',
+        body: { displayName },
+      }),
+    onMutate: ({ displayName }) => {
+      const prevChats = qc.getQueryData<Chat[]>(queryKeys.chats());
+      const prevContact = qc.getQueryData<{ jid: string; displayName?: string | null }>(
+        queryKeys.contact(contactJid),
+      );
+
+      // Cancel any in-flight refetches so they don't overwrite the optimistic update
+      void qc.cancelQueries({ queryKey: queryKeys.chats() });
+      void qc.cancelQueries({ queryKey: queryKeys.contact(contactJid) });
+
+      // Patch chats list: for DM chats whose jid matches the contact jid, update subject
+      qc.setQueryData<Chat[]>(queryKeys.chats(), (old) =>
+        old?.map((c) =>
+          c.type === 'dm' && c.jid === contactJid ? { ...c, subject: displayName } : c,
+        ),
+      );
+
+      // Patch individual contact cache if present
+      if (prevContact !== undefined) {
+        qc.setQueryData(queryKeys.contact(contactJid), { ...prevContact, displayName });
+      }
+
+      return { prevChats, prevContact };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prevChats !== undefined) {
+        qc.setQueryData(queryKeys.chats(), ctx.prevChats);
+      }
+      if (ctx?.prevContact !== undefined) {
+        qc.setQueryData(queryKeys.contact(contactJid), ctx.prevContact);
+      }
+      showErrorToast("Couldn't rename contact — try again.");
+    },
   });
 }

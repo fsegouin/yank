@@ -78,6 +78,39 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
     });
 
     sock.ev.on('messaging-history.set', (h) => {
+      // Chats first — so subjects exist before messages reference them.
+      for (const c of h.chats ?? []) {
+        if (!c.id) continue;
+        const t = c as { id: string; name?: string | null; subject?: string | null };
+        const subject = t.name ?? t.subject ?? undefined;
+        if (subject == null) continue;
+        this.emit('chat', {
+          jid: c.id,
+          type: c.id.endsWith('@g.us')
+            ? 'group'
+            : c.id.endsWith('@newsletter')
+              ? 'newsletter'
+              : 'dm',
+          subject,
+        });
+      }
+
+      // Contacts — address-book display names from history payload.
+      for (const c of h.contacts ?? []) {
+        if (!c.id) continue;
+        const t = c as {
+          id: string;
+          name?: string | null;
+          notify?: string | null;
+          verifiedName?: string | null;
+        };
+        const displayName = t.name ?? undefined;
+        const pushName = t.notify ?? undefined;
+        const businessName = t.verifiedName ?? undefined;
+        if (!displayName && !pushName && !businessName) continue;
+        this.emit('contact', { jid: c.id, displayName, pushName, businessName });
+      }
+
       // Ingest the history batch via the same path as live messages.
       for (const m of h.messages ?? []) {
         const r = normalizeBaileysMessage(m);

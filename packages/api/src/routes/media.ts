@@ -53,18 +53,24 @@ export function registerMediaRoutes(
       return reply.send(createReadStream(meta.localPath));
     }
 
-    if (row.status === 'failed') {
-      return reply.code(502).send({ error: 'download_failed' });
-    }
-
-    // queued or downloading → enqueue (idempotent on daemon side) and return 202
-    if (row.status === 'queued') {
+    // For queued OR failed: reset to queued (if failed) and enqueue. The daemon's
+    // idempotency guard ignores in-flight 'downloading' state but happily retries
+    // 'queued' or 'failed'. We flip 'failed' -> 'queued' so subsequent GETs while
+    // the download is in flight return 202, not 502.
+    if (row.status === 'queued' || row.status === 'failed') {
+      if (row.status === 'failed') {
+        await deps.db
+          .update(messageMedia)
+          .set({ status: 'queued' })
+          .where(eq(messageMedia.messageId, req.params.messageId));
+      }
       await deps.commands.publish({
         type: 'download-media',
         userId: deps.userId,
         messageId: req.params.messageId,
       });
     }
+
     return reply.code(202).send({ status: row.status });
   });
 }

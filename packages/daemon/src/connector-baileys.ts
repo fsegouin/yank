@@ -29,6 +29,29 @@ export interface BaileysConnectorOpts {
   logger?: Logger;
 }
 
+const DOWNLOAD_TIMEOUT_MS = 30_000;
+
+// Wrap a promise with a hard timeout. WA's media re-upload request can hang
+// indefinitely under anti-abuse cooldown; without this, a single stuck download
+// would block the serial commands consumer for every subsequent media.
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${ms}ms`));
+    }, ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
+
 // Minimal pino-compatible no-op logger. Baileys calls `.info/.warn/.error/.debug/.trace/.fatal`
 // and `.child()` on the logger we pass to `downloadMediaMessage`; if `logger` is undefined,
 // Baileys crashes on the retry path (`messages.js` calls `ctx.logger.info(...)`).
@@ -456,14 +479,18 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
 
     const attempt = async (media: DownloadMediaArgs['media']): Promise<Buffer> => {
       const fakeMessage = buildFakeMessage(media);
-      const buf = await downloadMediaMessage(
-        fakeMessage as never,
-        'buffer',
-        {},
-        {
-          reuploadRequest: sock.updateMediaMessage.bind(sock),
-          logger: this.logger as never,
-        },
+      const buf = await withTimeout(
+        downloadMediaMessage(
+          fakeMessage as never,
+          'buffer',
+          {},
+          {
+            reuploadRequest: sock.updateMediaMessage.bind(sock),
+            logger: this.logger as never,
+          },
+        ),
+        DOWNLOAD_TIMEOUT_MS,
+        `download ${args.waMessageId}`,
       );
       return buf as Buffer;
     };

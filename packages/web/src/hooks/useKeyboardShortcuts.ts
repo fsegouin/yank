@@ -16,6 +16,7 @@ export function useKeyboardShortcuts(): void {
   const openThreadId = useUiStore((s) => s.openThreadId);
   const closeThread = useUiStore((s) => s.closeThread);
   const paletteOpen = useUiStore((s) => s.paletteOpen);
+  const setChatFilter = useUiStore((s) => s.setChatFilter);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -47,6 +48,11 @@ export function useKeyboardShortcuts(): void {
         } else {
           void navigate({ to: '/' });
         }
+        return;
+      }
+      if (mod && !e.shiftKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        setChatFilter({ open: true });
         return;
       }
       if (mod && e.shiftKey && e.key.toLowerCase() === 'f') {
@@ -81,5 +87,6 @@ export function useKeyboardShortcuts(): void {
     paletteOpen,
     openThreadId,
     closeThread,
+    setChatFilter,
   ]);
 }

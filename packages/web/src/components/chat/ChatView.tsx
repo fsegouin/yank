@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { Message } from '@yank/shared';
 import { useChat, useMessages } from '../../lib/queries.js';
 import { useSendMessage } from '../../lib/mutations.js';
@@ -15,7 +15,13 @@ export function ChatView({ chatId }: { chatId: string }) {
   const openThread = useUiStore((s) => s.openThread);
   const closeThread = useUiStore((s) => s.closeThread);
   const openThreadId = useUiStore((s) => s.openThreadId);
+  const setCurrentChatId = useUiStore((s) => s.setCurrentChatId);
   const send = useSendMessage(chatId);
+
+  useEffect(() => {
+    setCurrentChatId(chatId);
+    return () => setCurrentChatId(null);
+  }, [chatId, setCurrentChatId]);
   const { data: messagesData } = useMessages(chatId);
 
   const allMessages = useMemo<Message[]>(() => {

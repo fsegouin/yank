@@ -1,6 +1,10 @@
 import { useEffect } from 'react';
 import { useNavigate, useRouter } from '@tanstack/react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { useUiStore } from '../state/ui.js';
+import { useMarkRead } from '../lib/mutations.js';
+import { queryKeys } from '../lib/queryKeys.js';
+import type { MessagesPage } from '@yank/shared';
 
 /**
  * Wires Cmd+K, Cmd+1/2/3, Cmd+Shift+F, Esc. Mount once at the root.
@@ -10,6 +14,7 @@ import { useUiStore } from '../state/ui.js';
 export function useKeyboardShortcuts(): void {
   const navigate = useNavigate();
   const router = useRouter();
+  const qc = useQueryClient();
   const togglePalette = useUiStore((s) => s.togglePalette);
   const openPalette = useUiStore((s) => s.openPalette);
   const setWorkspace = useUiStore((s) => s.setWorkspace);
@@ -17,6 +22,8 @@ export function useKeyboardShortcuts(): void {
   const closeThread = useUiStore((s) => s.closeThread);
   const paletteOpen = useUiStore((s) => s.paletteOpen);
   const setChatFilter = useUiStore((s) => s.setChatFilter);
+  const currentChatId = useUiStore((s) => s.currentChatId);
+  const markRead = useMarkRead(currentChatId ?? '');
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -60,6 +67,18 @@ export function useKeyboardShortcuts(): void {
         void navigate({ to: '/search' });
         return;
       }
+      if (mod && e.shiftKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        if (!currentChatId) return;
+        const data = qc.getQueryData<{ pages: MessagesPage[] }>(
+          queryKeys.messages(currentChatId),
+        );
+        const pages = data?.pages ?? [];
+        const allMessages = pages.flatMap((p) => p.messages);
+        const last = allMessages[0]; // pages are newest-first (page 0 = newest)
+        if (last) markRead.mutate(last.id);
+        return;
+      }
       if (e.key === 'Escape' && !inEditable) {
         if (paletteOpen) {
           togglePalette(false);
@@ -81,6 +100,7 @@ export function useKeyboardShortcuts(): void {
   }, [
     navigate,
     router,
+    qc,
     togglePalette,
     openPalette,
     setWorkspace,
@@ -88,5 +108,7 @@ export function useKeyboardShortcuts(): void {
     openThreadId,
     closeThread,
     setChatFilter,
+    currentChatId,
+    markRead,
   ]);
 }

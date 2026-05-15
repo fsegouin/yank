@@ -1,6 +1,7 @@
 import type { Message as MessageType } from '@yank/shared';
 import { Avatar } from '../primitives/Avatar.js';
 import { MessageText } from './MessageText.js';
+import { MessageRowActions } from './MessageRowActions.js';
 import { Reactions } from './Reactions.js';
 import { StatusGlyph } from './StatusGlyph.js';
 import { Quote } from './Quote.js';
@@ -8,7 +9,6 @@ import { ThreadLink } from './ThreadLink.js';
 import { MediaImage } from './MediaImage.js';
 import { DocCard } from './DocCard.js';
 import { VoiceNote } from './VoiceNote.js';
-import { EmojiIcon, ThreadIcon, StarIcon, MoreIcon } from '../icons/index.js';
 import styles from './Message.module.css';
 
 export interface MessageRowProps {
@@ -25,6 +25,8 @@ export interface MessageRowProps {
     text: string | null;
     senderName: string;
   };
+  chatId?: string;
+  myJid?: string;
 }
 
 const fmtTime = (iso: string) =>
@@ -40,6 +42,8 @@ export function MessageRow({
   onStar,
   inThread = false,
   reply,
+  chatId = '',
+  myJid = '',
 }: MessageRowProps) {
   if (message.kind === 'system') {
     return (
@@ -74,7 +78,10 @@ export function MessageRow({
     );
   }
   return (
-    <div className={styles.msg + (showHead ? '' : ' ' + styles.compact)}>
+    <div
+      className={styles.msg + ' msgGroup' + (showHead ? '' : ' ' + styles.compact)}
+      data-testid="message-row"
+    >
       <div className={styles.avatarSlot}>
         {showHead ? (
           <Avatar seed={message.senderJid} initials={senderInitials} size={36} />
@@ -123,30 +130,7 @@ export function MessageRow({
           />
         )}
       </div>
-      <div className={styles.actions}>
-        <button
-          type="button"
-          className={styles.actionBtn}
-          title="Add reaction"
-          onClick={() => onReact?.('👍')}
-        >
-          <EmojiIcon size={14} />
-        </button>
-        <button
-          type="button"
-          className={styles.actionBtn}
-          title="Reply in thread"
-          onClick={onOpenThread}
-        >
-          <ThreadIcon size={14} />
-        </button>
-        <button type="button" className={styles.actionBtn} title="Star" onClick={onStar}>
-          <StarIcon size={13} />
-        </button>
-        <button type="button" className={styles.actionBtn} title="More">
-          <MoreIcon size={14} />
-        </button>
-      </div>
+      <MessageRowActions message={message} chatId={chatId} myJid={myJid} />
     </div>
   );
 }

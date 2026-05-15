@@ -14,12 +14,14 @@ interface UiState {
   paletteOpen: boolean;
   openThreadId: string | null;
   editing: EditingState | null;
+  currentJid: string | null;
 
   setWorkspace: (w: ActiveWorkspace) => void;
   togglePalette: (open?: boolean) => void;
   openThread: (messageId: string) => void;
   closeThread: () => void;
   setEditing: (value: EditingState | null) => void;
+  setCurrentJid: (jid: string) => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -27,10 +29,12 @@ export const useUiStore = create<UiState>((set) => ({
   paletteOpen: false,
   openThreadId: null,
   editing: null,
+  currentJid: null,
 
   setWorkspace: (workspace) => set({ workspace }),
   togglePalette: (open) => set((s) => ({ paletteOpen: open ?? !s.paletteOpen })),
   openThread: (openThreadId) => set({ openThreadId }),
   closeThread: () => set({ openThreadId: null }),
   setEditing: (editing) => set({ editing }),
+  setCurrentJid: (currentJid) => set({ currentJid }),
 }));

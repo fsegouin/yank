@@ -16,6 +16,7 @@ interface Props {
 }
 
 export function VoiceNote({ messageId, media }: Props) {
+  const isExpired = media.status === 'failed' && media.failureReason === 'expired';
   const { triggered, trigger } = useMediaLoad(messageId, media.status);
 
   if (media.status === 'ready' && media.url) {
@@ -23,6 +24,19 @@ export function VoiceNote({ messageId, media }: Props) {
       <div className={styles.voice}>
         <audio src={media.url} controls preload="none" style={{ height: 32 }} />
         <span className={styles.dur + ' mono'}>{fmtDur(media.durationMs ?? 0)}</span>
+      </div>
+    );
+  }
+
+  // Permanently-expired: non-interactive placeholder, no retry fetch.
+  if (isExpired) {
+    return (
+      <div className={styles.voice} aria-disabled="true">
+        <span className={styles.play}>
+          <PlayIcon size={10} />
+        </span>
+        <span className={styles.dur + ' mono'}>{fmtDur(media.durationMs ?? 0)}</span>
+        <span className={styles.hint}>not available</span>
       </div>
     );
   }

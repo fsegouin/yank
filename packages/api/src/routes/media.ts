@@ -15,6 +15,7 @@ interface MediaMetadata {
   directPath?: string;
   mediaKey?: string;
   localPath?: string;
+  failureReason?: 'expired' | 'transient' | 'unknown';
 }
 
 export function registerMediaRoutes(
@@ -53,17 +54,30 @@ export function registerMediaRoutes(
       return reply.send(createReadStream(meta.localPath));
     }
 
-    // For queued OR failed: reset to queued (if failed) and enqueue. The daemon's
-    // idempotency guard ignores in-flight 'downloading' state but happily retries
-    // 'queued' or 'failed'. We flip 'failed' -> 'queued' so subsequent GETs while
-    // the download is in flight return 202, not 502.
-    if (row.status === 'queued' || row.status === 'failed') {
-      if (row.status === 'failed') {
-        await deps.db
-          .update(messageMedia)
-          .set({ status: 'queued' })
-          .where(eq(messageMedia.messageId, req.params.messageId));
+    // For failed: inspect the recorded failureReason. WA's CDN-expired media
+    // ("Failed to re-upload media") can never be recovered — return 410 so the
+    // client stops the IO-driven re-enqueue cascade. Transient/unknown errors
+    // get reset to 'queued' and re-enqueued.
+    if (row.status === 'failed') {
+      if (meta.failureReason === 'expired') {
+        return reply
+          .code(410)
+          .send({ error: 'expired', reason: 'WhatsApp no longer has this media.' });
       }
+      await deps.db
+        .update(messageMedia)
+        .set({ status: 'queued' })
+        .where(eq(messageMedia.messageId, req.params.messageId));
+      await deps.commands.publish({
+        type: 'download-media',
+        userId: deps.userId,
+        messageId: req.params.messageId,
+      });
+      return reply.code(202).send({ status: 'queued' });
+    }
+
+    // 'queued': re-publish the command (idempotent on the daemon side).
+    if (row.status === 'queued') {
       await deps.commands.publish({
         type: 'download-media',
         userId: deps.userId,

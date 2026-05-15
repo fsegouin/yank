@@ -11,6 +11,7 @@ interface Props {
 export function MediaImage({ messageId, media }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
+  const isExpired = media.status === 'failed' && media.failureReason === 'expired';
   const { trigger } = useMediaLoad(messageId, media.status);
 
   useEffect(() => {
@@ -28,8 +29,11 @@ export function MediaImage({ messageId, media }: Props) {
 
   useEffect(() => {
     if (!inView) return;
+    // Permanently-expired media must NOT auto-fetch on viewport entry —
+    // that's exactly the cascade we're trying to stop.
+    if (isExpired) return;
     if (media.status === 'queued') trigger();
-  }, [inView, media.status, trigger]);
+  }, [inView, media.status, isExpired, trigger]);
 
   const aspect = media.width && media.height ? `${media.width} / ${media.height}` : '4 / 3';
 
@@ -43,6 +47,8 @@ export function MediaImage({ messageId, media }: Props) {
             loading="lazy"
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
+        ) : isExpired ? (
+          <span className={styles.placeholder}>Media no longer available</span>
         ) : media.status === 'failed' ? (
           <div className={styles.placeholder}>
             <span>Image failed</span>

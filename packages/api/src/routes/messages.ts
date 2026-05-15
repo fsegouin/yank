@@ -76,6 +76,9 @@ export function registerMessagesRoutes(
           mediaHeight: messageMedia.height,
           mediaDurationMs: messageMedia.durationMs,
           mediaStatus: messageMedia.status,
+          // file_path is a JSON blob — we only extract failureReason below;
+          // never expose directPath/mediaKey/localPath to clients.
+          mediaFailureMeta: messageMedia.filePath,
           reactions: sql<unknown>`(
             SELECT COALESCE(json_agg(json_build_object(
               'emoji', emoji,
@@ -121,12 +124,22 @@ export function registerMessagesRoutes(
             mediaHeight,
             mediaDurationMs,
             mediaStatus,
+            mediaFailureMeta,
             ...rest
           } = r;
           const senderName =
             r.senderJid === 'me'
               ? 'You'
               : (senderDisplayName ?? senderPushName ?? senderBusinessName ?? r.senderJid);
+          let failureReason: string | undefined;
+          if (mediaStatus === 'failed' && mediaFailureMeta) {
+            try {
+              const parsed = JSON.parse(mediaFailureMeta) as { failureReason?: string };
+              failureReason = parsed.failureReason;
+            } catch {
+              /* ignore — leave failureReason undefined */
+            }
+          }
           const media = mediaMime
             ? {
                 mime: mediaMime,
@@ -137,6 +150,7 @@ export function registerMessagesRoutes(
                 url: mediaStatus === 'ready' ? `/api/media/${r.id}` : null,
                 thumbnailUrl: null,
                 status: mediaStatus,
+                failureReason,
               }
             : undefined;
           return {

@@ -20,6 +20,7 @@ interface Props {
 }
 
 export function DocCard({ messageId, media, name }: Props) {
+  const isExpired = media.status === 'failed' && media.failureReason === 'expired';
   const { triggered, trigger } = useMediaLoad(messageId, media.status);
 
   if (media.status === 'ready' && media.url) {
@@ -37,6 +38,22 @@ export function DocCard({ messageId, media, name }: Props) {
           <div className={styles.size + ' mono'}>{fmtBytes(media.sizeBytes)}</div>
         </div>
       </a>
+    );
+  }
+
+  // Permanently-expired: render as a non-interactive placeholder so a tap
+  // doesn't fire another doomed fetch.
+  if (isExpired) {
+    return (
+      <div className={styles.doc} aria-disabled="true">
+        <div className={styles.ext}>{ext(media.mime)}</div>
+        <div>
+          <div className={styles.name}>{name}</div>
+          <div className={styles.size + ' mono'}>
+            {fmtBytes(media.sizeBytes)} · not available
+          </div>
+        </div>
+      </div>
     );
   }
 

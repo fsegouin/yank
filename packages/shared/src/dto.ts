@@ -55,6 +55,10 @@ export const MediaSchema = z.object({
   url: z.string().nullable(),
   thumbnailUrl: z.string().nullable(),
   status: z.enum(['queued', 'downloading', 'ready', 'failed']),
+  // Only meaningful when status === 'failed'. 'expired' = WA's CDN no longer
+  // has the bytes (permanent), 'transient' = network/timeout (retryable),
+  // 'unknown' = pre-classification fallback.
+  failureReason: z.enum(['expired', 'transient', 'unknown']).optional(),
 });
 export type Media = z.infer<typeof MediaSchema>;
 

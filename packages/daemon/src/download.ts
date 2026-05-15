@@ -69,7 +69,7 @@ export async function handleDownloadCommand(
   }
 
   if (!meta.directPath || !meta.mediaKey) {
-    await markFailed(deps, cmd.messageId);
+    await markFailed(deps, cmd.messageId, new Error('missing directPath or mediaKey'));
     return;
   }
 
@@ -81,7 +81,7 @@ export async function handleDownloadCommand(
 
   const baileysType = MEDIA_TYPE_MAP[row.messageKind];
   if (!baileysType) {
-    await markFailed(deps, cmd.messageId);
+    await markFailed(deps, cmd.messageId, new Error(`unsupported media kind: ${row.messageKind}`));
     return;
   }
 
@@ -93,6 +93,8 @@ export async function handleDownloadCommand(
     await mkdir(userDir, { recursive: true });
   } catch (err) {
     console.error('[download] cannot create media directory', { userDir, err });
+    // Treat directory-create failures as transient (filesystem/permissions issue,
+    // not a permanent CDN-expiry) so the user can retry once the env is fixed.
     await markFailed(deps, cmd.messageId);
     await deps.bus.publish({
       type: 'media-ready',
@@ -147,7 +149,7 @@ export async function handleDownloadCommand(
       err: err instanceof Error ? err.message : String(err),
       stack: err instanceof Error ? err.stack : undefined,
     });
-    await markFailed(deps, cmd.messageId);
+    await markFailed(deps, cmd.messageId, err);
     await deps.bus.publish({
       type: 'media-ready',
       userId: deps.userId,
@@ -157,12 +159,46 @@ export async function handleDownloadCommand(
   }
 }
 
-async function markFailed(deps: DownloadDeps, messageId: string): Promise<void> {
-  console.error('[download] marking media as failed', { messageId });
+async function markFailed(
+  deps: DownloadDeps,
+  messageId: string,
+  err?: unknown,
+): Promise<void> {
+  const reason = classifyError(err);
+  console.error('[download] marking media as failed', { messageId, reason });
+  // Read existing metadata so we don't clobber directPath/mediaKey etc — we
+  // want the reason recorded alongside the existing fields so the api can
+  // distinguish permanently-expired media from transient errors.
+  const rows = await deps.db
+    .select({ filePath: messageMedia.filePath })
+    .from(messageMedia)
+    .where(eq(messageMedia.messageId, messageId))
+    .limit(1);
+  let meta: Record<string, unknown> = {};
+  if (rows[0]?.filePath) {
+    try {
+      meta = JSON.parse(rows[0].filePath) as Record<string, unknown>;
+    } catch {
+      /* ignore — meta stays as {} */
+    }
+  }
+  meta.failureReason = reason;
   await deps.db
     .update(messageMedia)
-    .set({ status: 'failed' })
+    .set({ status: 'failed', filePath: JSON.stringify(meta) })
     .where(eq(messageMedia.messageId, messageId));
+}
+
+function classifyError(err: unknown): 'expired' | 'transient' | 'unknown' {
+  if (!err) return 'unknown';
+  const message = err instanceof Error ? err.message : String(err);
+  // Baileys returns "Failed to re-upload media (N)" from sock.updateMediaMessage
+  // when WA responds with an error code (N). That means WA's CDN no longer has
+  // the bytes — retrying will not succeed.
+  if (message.includes('Failed to re-upload media')) return 'expired';
+  // Timeouts from our withTimeout wrapper / network slowness are retryable.
+  if (message.includes('timed out')) return 'transient';
+  return 'transient';
 }
 
 function guessExt(mime: string): string {

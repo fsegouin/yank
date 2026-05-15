@@ -17,6 +17,7 @@ export {
   ReactionSchema,
   MediaSchema,
   SendMessageBodySchema,
+  AssignmentBodySchema,
   WorkspaceSchema,
   ChatKindSchema,
   MessageKindSchema,
@@ -28,5 +29,6 @@ export {
   type Reaction,
   type Media,
   type SendMessageBody,
+  type AssignmentBody,
   type Workspace,
 } from './dto.js';

@@ -332,14 +332,27 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
     void sock
       .groupMetadata(jid)
       .then((metadata) => {
-        if (!metadata?.participants) return;
-        const members: InboundGroupMember[] = metadata.participants.map((p) => {
-          const admin = p.admin;
-          const role: InboundGroupMember['role'] =
-            admin === 'superadmin' ? 'superadmin' : admin === 'admin' ? 'admin' : 'member';
-          return { jid: p.id, role };
-        });
-        this.emit('group-members', jid, members);
+        if (!metadata) return;
+
+        // Subject from group metadata — covers groups that didn't get a subject
+        // via h.chats (history-set) or chats.upsert events.
+        if (metadata.subject && metadata.subject.length > 0) {
+          this.emit('chat', {
+            jid,
+            type: 'group',
+            subject: metadata.subject,
+          });
+        }
+
+        if (metadata.participants) {
+          const members: InboundGroupMember[] = metadata.participants.map((p) => {
+            const admin = p.admin;
+            const role: InboundGroupMember['role'] =
+              admin === 'superadmin' ? 'superadmin' : admin === 'admin' ? 'admin' : 'member';
+            return { jid: p.id, role };
+          });
+          this.emit('group-members', jid, members);
+        }
       })
       .catch(() => {
         // No access / network blip — drop the throttle marker so a future event can retry.

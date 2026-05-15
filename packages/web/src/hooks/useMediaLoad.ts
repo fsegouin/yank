@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export interface UseMediaLoadResult {
   triggered: boolean;
@@ -11,7 +11,9 @@ export interface UseMediaLoadResult {
  * via SSE `media-ready` → cache invalidation → message refetch.
  *
  * `currentStatus` is the message_media row's current status from the api.
- * If `ready` or `failed`, the hook is a no-op.
+ * If `ready`, the hook is a no-op. If `failed`, a click-triggered retry can
+ * re-fire the fetch (the trigger flag is reset whenever we leave the
+ * in-flight state).
  */
 export function useMediaLoad(
   messageId: string,
@@ -20,9 +22,17 @@ export function useMediaLoad(
   const fired = useRef(false);
   const [triggered, setTriggered] = useState(false);
 
+  // Reset the firing flag whenever the status leaves the in-flight state.
+  // Lets the user retry after a failure, and re-arm if we ever go back to 'queued'.
+  useEffect(() => {
+    if (currentStatus === 'failed' || currentStatus === 'queued') {
+      fired.current = false;
+    }
+  }, [currentStatus, messageId]);
+
   const trigger = useCallback(() => {
     if (fired.current) return;
-    if (currentStatus === 'ready' || currentStatus === 'failed') return;
+    if (currentStatus === 'ready') return;
     fired.current = true;
     setTriggered(true);
     // Fire-and-forget; the api enqueues, the daemon downloads, the SSE event

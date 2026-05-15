@@ -76,6 +76,24 @@ export async function handleDownloadCommand(
     return;
   }
 
+  // Ensure the target directory exists BEFORE attempting download, so EACCES
+  // (e.g. user can't write the default /var/lib/yank/media path) surfaces with
+  // a clear message instead of being swallowed deep inside the stream pipeline.
+  const userDir = join(deps.mediaDir, deps.userId);
+  try {
+    await mkdir(userDir, { recursive: true });
+  } catch (err) {
+    console.error('[download] cannot create media directory', { userDir, err });
+    await markFailed(deps, cmd.messageId);
+    await deps.bus.publish({
+      type: 'media-ready',
+      userId: deps.userId,
+      messageId: cmd.messageId,
+      status: 'failed',
+    });
+    return;
+  }
+
   try {
     // Baileys' downloadContentFromMessage takes an object with the fields below.
     // It returns a readable stream of the decrypted bytes. The full Baileys
@@ -98,8 +116,6 @@ export async function handleDownloadCommand(
     const bytes = Buffer.concat(chunks);
 
     // Write to /<mediaDir>/<userId>/<messageId>.<ext>
-    const userDir = join(deps.mediaDir, deps.userId);
-    await mkdir(userDir, { recursive: true });
     const ext = guessExt(row.mime);
     const localPath = join(userDir, `${cmd.messageId}${ext}`);
     await writeFile(localPath, bytes);
@@ -117,7 +133,12 @@ export async function handleDownloadCommand(
       messageId: cmd.messageId,
       status: 'ready',
     });
-  } catch {
+  } catch (err) {
+    console.error('[download] media download failed', {
+      messageId: cmd.messageId,
+      err: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     await markFailed(deps, cmd.messageId);
     await deps.bus.publish({
       type: 'media-ready',
@@ -129,6 +150,7 @@ export async function handleDownloadCommand(
 }
 
 async function markFailed(deps: DownloadDeps, messageId: string): Promise<void> {
+  console.error('[download] marking media as failed', { messageId });
   await deps.db
     .update(messageMedia)
     .set({ status: 'failed' })

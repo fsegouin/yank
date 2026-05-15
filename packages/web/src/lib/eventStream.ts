@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { DaemonEventSchema, type DaemonEvent, type Chat, type MessagesPage } from '@yank/shared';
 import { queryKeys } from './queryKeys.js';
+import { useConnectionStore } from '../state/connection.js';
 import { useEditErrorsStore } from '../state/editErrors.js';
 import { useMediaBreakerStore } from '../state/mediaBreaker.js';
 
@@ -54,7 +55,15 @@ export function useEventStream(opts: UseEventStreamOptions = {}): void {
           qc.invalidateQueries({ queryKey: queryKeys.chats() });
           return;
         case 'connected':
+          useConnectionStore.getState().setStatus('connected');
+          qc.invalidateQueries({ queryKey: queryKeys.chats() });
+          qc.invalidateQueries({ queryKey: ['setup-status'] });
+          return;
         case 'disconnected':
+          useConnectionStore.getState().setStatus('disconnected');
+          qc.invalidateQueries({ queryKey: queryKeys.chats() });
+          qc.invalidateQueries({ queryKey: ['setup-status'] });
+          return;
         case 'sync-complete':
           qc.invalidateQueries({ queryKey: queryKeys.chats() });
           qc.invalidateQueries({ queryKey: ['setup-status'] });

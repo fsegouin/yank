@@ -539,4 +539,20 @@ export const DirectoryIcon: IconFn = ({ size = 14 }: IconProps = {}) => (
   </svg>
 );
 
+export const EditIcon: IconFn = ({ size = 14 }: IconProps = {}) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.4"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M11.5 2.5a1.5 1.5 0 0 1 2 2L5 13l-3 1 1-3z" />
+  </svg>
+);
+
 export type { IconProps } from './types.js';

@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { createReadStream } from 'node:fs';
 import { and, eq } from 'drizzle-orm';
+import type Redis from 'ioredis';
 import type { Db } from '@yank/db';
 import { messageMedia, messages } from '@yank/db/schema';
 import type { CommandsBus } from '../commands-bus.js';
@@ -9,6 +10,7 @@ export interface MediaDeps {
   db: Db;
   userId: string;
   commands: CommandsBus;
+  redis: Redis;
 }
 
 interface MediaMetadata {
@@ -86,5 +88,13 @@ export function registerMediaRoutes(
     }
 
     return reply.code(202).send({ status: row.status });
+  });
+
+  app.get('/api/media/breaker-state', async (_req, reply) => {
+    const key = `breaker:user:${deps.userId}`;
+    const hash = await deps.redis.hgetall(key);
+    const state = (hash?.['state'] as 'closed' | 'open' | 'half-open' | undefined) ?? 'closed';
+    const retryAt = hash?.['retryAt'] || null;
+    return reply.code(200).send({ state, retryAt: retryAt || null });
   });
 }

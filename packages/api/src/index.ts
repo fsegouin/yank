@@ -38,7 +38,7 @@ registerEventsRoute(app, { bus: eventsBus });
 registerSetupRoutes(app, { db, userId: env.YANK_USER_ID, commands: commandsBus });
 registerChatsRoutes(app, { db, userId: env.YANK_USER_ID, events: eventsPublisher });
 registerMessagesRoutes(app, { db, userId: env.YANK_USER_ID, commands: commandsBus, eventsPublisher });
-registerMediaRoutes(app, { db, userId: env.YANK_USER_ID, commands: commandsBus });
+registerMediaRoutes(app, { db, userId: env.YANK_USER_ID, commands: commandsBus, redis });
 registerContactsRoutes(app, { db, userId: env.YANK_USER_ID, eventsPublisher });
 
 const port = Number(process.env.PORT ?? 3001);

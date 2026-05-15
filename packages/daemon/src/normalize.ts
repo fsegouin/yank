@@ -157,6 +157,9 @@ function mediaFromImage(im: proto.Message.IImageMessage): InboundMessage['media'
     height: nullToUndef(im.height),
     directPath: im.directPath ?? undefined,
     mediaKey: bytesToBase64(im.mediaKey),
+    url: im.url ?? undefined,
+    fileSha256: bytesToBase64(im.fileSha256),
+    fileEncSha256: bytesToBase64(im.fileEncSha256),
   };
 }
 
@@ -169,6 +172,9 @@ function mediaFromVideo(v: proto.Message.IVideoMessage): InboundMessage['media']
     durationMs: v.seconds != null ? v.seconds * 1000 : undefined,
     directPath: v.directPath ?? undefined,
     mediaKey: bytesToBase64(v.mediaKey),
+    url: v.url ?? undefined,
+    fileSha256: bytesToBase64(v.fileSha256),
+    fileEncSha256: bytesToBase64(v.fileEncSha256),
   };
 }
 
@@ -179,6 +185,9 @@ function mediaFromAudio(a: proto.Message.IAudioMessage): InboundMessage['media']
     durationMs: a.seconds != null ? a.seconds * 1000 : undefined,
     directPath: a.directPath ?? undefined,
     mediaKey: bytesToBase64(a.mediaKey),
+    url: a.url ?? undefined,
+    fileSha256: bytesToBase64(a.fileSha256),
+    fileEncSha256: bytesToBase64(a.fileEncSha256),
   };
 }
 
@@ -189,6 +198,9 @@ function mediaFromDocument(d: proto.Message.IDocumentMessage): InboundMessage['m
     fileName: d.fileName ?? undefined,
     directPath: d.directPath ?? undefined,
     mediaKey: bytesToBase64(d.mediaKey),
+    url: d.url ?? undefined,
+    fileSha256: bytesToBase64(d.fileSha256),
+    fileEncSha256: bytesToBase64(d.fileEncSha256),
   };
 }
 
@@ -200,6 +212,9 @@ function mediaFromSticker(s: proto.Message.IStickerMessage): InboundMessage['med
     height: nullToUndef(s.height),
     directPath: s.directPath ?? undefined,
     mediaKey: bytesToBase64(s.mediaKey),
+    url: s.url ?? undefined,
+    fileSha256: bytesToBase64(s.fileSha256),
+    fileEncSha256: bytesToBase64(s.fileEncSha256),
   };
 }
 

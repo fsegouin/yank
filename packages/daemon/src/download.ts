@@ -1,10 +1,9 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { Readable } from 'node:stream';
-import { downloadContentFromMessage } from '@whiskeysockets/baileys';
 import type { Db } from '@yank/db';
 import { and, eq } from 'drizzle-orm';
-import { messageMedia, messages } from '@yank/db/schema';
+import { chats, messageMedia, messages } from '@yank/db/schema';
+import type { Connector } from './connector.js';
 import type { EventsBus } from './events-bus.js';
 
 export interface DownloadDeps {
@@ -12,11 +11,15 @@ export interface DownloadDeps {
   userId: string;
   mediaDir: string;
   bus: EventsBus;
+  connector: Connector;
 }
 
 interface MediaMetadata {
   directPath?: string;
   mediaKey?: string; // base64
+  url?: string;
+  fileSha256?: string; // base64
+  fileEncSha256?: string; // base64
   localPath?: string;
 }
 
@@ -32,7 +35,9 @@ export async function handleDownloadCommand(
   deps: DownloadDeps,
   cmd: { messageId: string },
 ): Promise<void> {
-  // Look up the message + media row.
+  // Look up the message + media row. We also need waMessageId, senderJid and the
+  // chat JID so we can hand a reconstructed proto message to Baileys' downloader
+  // for URL refresh (reuploadRequest).
   const rows = await deps.db
     .select({
       mediaMessageId: messageMedia.messageId,
@@ -40,9 +45,13 @@ export async function handleDownloadCommand(
       mime: messageMedia.mime,
       status: messageMedia.status,
       messageKind: messages.kind,
+      waMessageId: messages.waMessageId,
+      senderJid: messages.senderJid,
+      chatJid: chats.jid,
     })
     .from(messageMedia)
     .innerJoin(messages, eq(messageMedia.messageId, messages.id))
+    .innerJoin(chats, eq(messages.chatId, chats.id))
     .where(and(eq(messages.userId, deps.userId), eq(messageMedia.messageId, cmd.messageId)))
     .limit(1);
 
@@ -95,25 +104,24 @@ export async function handleDownloadCommand(
   }
 
   try {
-    // Baileys' downloadContentFromMessage takes an object with the fields below.
-    // It returns a readable stream of the decrypted bytes. The full Baileys
-    // message type wants many more fields, but only directPath/mediaKey/url are
-    // actually read — hence the `as never` cast.
-    const stream = await downloadContentFromMessage(
-      {
+    // Delegate the actual decrypt + URL-refresh to the connector. Baileys'
+    // downloadMediaMessage uses sock.updateMediaMessage as the reuploadRequest,
+    // so a stale directPath (HTTP 403/410 from WA's CDN) is recovered transparently.
+    const bytes = await deps.connector.downloadMedia({
+      waMessageId: row.waMessageId ?? '',
+      chatJid: row.chatJid,
+      fromMe: row.senderJid === 'me',
+      kind: baileysType,
+      media: {
+        mime: row.mime,
+        sizeBytes: 0, // not actually used by Baileys; we get the true length below
         directPath: meta.directPath,
-        mediaKey: Buffer.from(meta.mediaKey, 'base64'),
-        url: '', // ignored when directPath is present
-      } as never,
-      baileysType,
-    );
-
-    // Drain stream to a Buffer.
-    const chunks: Buffer[] = [];
-    for await (const chunk of stream as Readable) {
-      chunks.push(chunk as Buffer);
-    }
-    const bytes = Buffer.concat(chunks);
+        mediaKey: meta.mediaKey,
+        url: meta.url,
+        fileSha256: meta.fileSha256,
+        fileEncSha256: meta.fileEncSha256,
+      },
+    });
 
     // Write to /<mediaDir>/<userId>/<messageId>.<ext>
     const ext = guessExt(row.mime);

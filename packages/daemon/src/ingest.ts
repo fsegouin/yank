@@ -1,4 +1,6 @@
+import { and, eq } from 'drizzle-orm';
 import type { Db } from '@yank/db';
+import { chats } from '@yank/db/schema';
 import type {
   Connector,
   InboundChat,
@@ -156,5 +158,25 @@ export function attachInbound({ db, userId, connector, bus }: AttachInboundOpts)
   });
   connector.on('history-complete', () => {
     void bus.publish({ type: 'sync-complete', userId });
+  });
+
+  // WhatsApp only delivers chats.upsert / messaging-history.set ONCE per device link;
+  // on later reconnects those events stay silent so subjects/members never refresh.
+  // Drive a fresh per-group `groupMetadata` fetch on every 'open' to compensate. The
+  // connector's per-JID throttle is session-scoped so a fresh daemon re-fires for all.
+  connector.on('open', () => {
+    void (async () => {
+      try {
+        const groupRows = await db
+          .select({ jid: chats.jid })
+          .from(chats)
+          .where(and(eq(chats.userId, userId), eq(chats.type, 'group')));
+        for (const row of groupRows) {
+          connector.refreshGroup(row.jid);
+        }
+      } catch (err) {
+        console.error('[ingest] failed to backfill group metadata on open', err);
+      }
+    })();
   });
 }

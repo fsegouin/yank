@@ -24,7 +24,10 @@ export interface InboundMedia {
   fileName?: string;
   // URL pointers — actual download deferred until media-worker / lazy fetch.
   directPath?: string;
-  mediaKey?: string; // Baileys uses these to decrypt later
+  mediaKey?: string; // base64; Baileys uses these to decrypt later
+  url?: string; // optional CDN URL Baileys may have at ingest time
+  fileSha256?: string; // base64; needed to refresh URL via reuploadRequest
+  fileEncSha256?: string; // base64; needed to refresh URL via reuploadRequest
 }
 
 export interface InboundMessage {
@@ -117,4 +120,30 @@ export interface Connector extends TypedEventEmitter<ConnectorEvents> {
   close(): Promise<void>;
   /** Returns true when the connector has loaded auth state and the device is registered with WA. */
   isRegistered(): boolean;
+  /**
+   * Force a group metadata refresh for the given JID. Fire-and-forget; results
+   * arrive via 'chat' + 'group-members' events. Throttled internally per-JID.
+   */
+  refreshGroup(jid: string): void;
+  /**
+   * Download (and refresh URL if needed) the media bytes for a previously-ingested
+   * message. Uses Baileys' `reuploadRequest` hook to recover from stale `directPath`s.
+   */
+  downloadMedia(args: DownloadMediaArgs): Promise<Buffer>;
+}
+
+export interface DownloadMediaArgs {
+  waMessageId: string;
+  chatJid: string;
+  fromMe: boolean;
+  kind: 'image' | 'video' | 'audio' | 'document' | 'sticker';
+  media: {
+    mime: string;
+    sizeBytes: number;
+    directPath?: string;
+    mediaKey?: string; // base64
+    url?: string;
+    fileSha256?: string; // base64
+    fileEncSha256?: string; // base64
+  };
 }

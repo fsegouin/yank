@@ -150,13 +150,21 @@ export async function insertMessageMedia(
   messageId: string,
   media: InboundMedia,
 ): Promise<void> {
-  // The directPath/mediaKey are needed later by media-worker to decrypt + download.
-  // M3 only stores metadata; bytes arrive in M6. We park them in file_path as a JSON
-  // payload so a future migration can promote them to columns without re-pairing.
-  const pointer =
-    media.directPath || media.mediaKey
-      ? JSON.stringify({ directPath: media.directPath, mediaKey: media.mediaKey })
-      : null;
+  // The directPath/mediaKey + sha256 fields are needed later by the download path
+  // (media-worker or lazy fetch) to decrypt and — crucially — refresh stale URLs
+  // via Baileys' reuploadRequest. M3 stores them in file_path as JSON so a future
+  // migration can promote them to columns without re-pairing.
+  const hasAnyPointer =
+    media.directPath || media.mediaKey || media.url || media.fileSha256 || media.fileEncSha256;
+  const pointer = hasAnyPointer
+    ? JSON.stringify({
+        directPath: media.directPath,
+        mediaKey: media.mediaKey,
+        url: media.url,
+        fileSha256: media.fileSha256,
+        fileEncSha256: media.fileEncSha256,
+      })
+    : null;
   await ctx.db
     .insert(messageMedia)
     .values({

@@ -1,6 +1,7 @@
 import {
   default as makeWASocket,
   DisconnectReason,
+  downloadMediaMessage,
   fetchLatestBaileysVersion,
   type WASocket,
 } from '@whiskeysockets/baileys';
@@ -9,6 +10,7 @@ import { TypedEmitter } from './typed-emitter.js';
 import type {
   Connector,
   ConnectorEvents,
+  DownloadMediaArgs,
   InboundGroupMember,
   SendArgs,
   SendResult,
@@ -108,7 +110,7 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
           });
         }
         // Backfill group membership snapshot — fire-and-forget so history sync isn't blocked.
-        this.requestGroupMembers(c.id);
+        this.refreshGroup(c.id);
       }
 
       // Contacts — address-book display names from history payload.
@@ -245,7 +247,7 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
       // Refresh the full membership snapshot whenever participants change. We always
       // bypass the throttle here because participants actually changed.
       this.groupMetaRequested.delete(event.id);
-      this.requestGroupMembers(event.id);
+      this.refreshGroup(event.id);
     });
 
     sock.ev.on('chats.upsert', (chats) => {
@@ -261,7 +263,7 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
               : 'dm',
           subject: meta.name ?? meta.subject ?? undefined,
         });
-        this.requestGroupMembers(c.id);
+        this.refreshGroup(c.id);
       }
     });
 
@@ -323,7 +325,7 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
    * Fire-and-forget request for a group's participant list. Skips if it's not a group
    * JID or if we've already requested this session. Failures (no access etc.) are silent.
    */
-  private requestGroupMembers(jid: string): void {
+  refreshGroup(jid: string): void {
     if (!jid.endsWith('@g.us')) return;
     if (this.groupMetaRequested.has(jid)) return;
     this.groupMetaRequested.add(jid);
@@ -393,5 +395,49 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
 
   isRegistered(): boolean {
     return Boolean(this.auth?.state?.creds?.registered);
+  }
+
+  async downloadMedia(args: DownloadMediaArgs): Promise<Buffer> {
+    const sock = this.sock;
+    if (!sock) throw new Error('connector not started');
+    const m = args.media;
+    // Build the proto sub-message matching the kind. Baileys' downloadMediaMessage
+    // only reads the directPath/mediaKey/url/sha fields from this, plus the `key`
+    // for the reupload request — so we don't need a full WAMessage shape.
+    const mediaPart: Record<string, unknown> = {
+      mimetype: m.mime,
+      fileLength: m.sizeBytes,
+      url: m.url,
+      directPath: m.directPath,
+      mediaKey: m.mediaKey ? Buffer.from(m.mediaKey, 'base64') : undefined,
+      fileSha256: m.fileSha256 ? Buffer.from(m.fileSha256, 'base64') : undefined,
+      fileEncSha256: m.fileEncSha256 ? Buffer.from(m.fileEncSha256, 'base64') : undefined,
+    };
+    const partKey =
+      args.kind === 'image'
+        ? 'imageMessage'
+        : args.kind === 'video'
+          ? 'videoMessage'
+          : args.kind === 'audio'
+            ? 'audioMessage'
+            : args.kind === 'document'
+              ? 'documentMessage'
+              : 'stickerMessage';
+    const messageContent: Record<string, unknown> = { [partKey]: mediaPart };
+    const fakeMessage = {
+      key: { remoteJid: args.chatJid, id: args.waMessageId, fromMe: args.fromMe },
+      message: messageContent,
+    };
+
+    const buf = await downloadMediaMessage(
+      fakeMessage as never,
+      'buffer',
+      {},
+      {
+        reuploadRequest: sock.updateMediaMessage.bind(sock),
+        logger: undefined as never,
+      },
+    );
+    return buf;
   }
 }

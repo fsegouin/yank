@@ -119,7 +119,13 @@ export function createSession(deps: SessionDeps): Session {
             );
           } else if (cmd.type === 'download-media') {
             await handleDownloadCommand(
-              { db, userId: deps.userId, mediaDir: deps.mediaDir, bus },
+              {
+                db,
+                userId: deps.userId,
+                mediaDir: deps.mediaDir,
+                bus,
+                connector: deps.connector,
+              },
               cmd,
             );
           } else {

@@ -2,6 +2,7 @@ import { TypedEmitter } from './typed-emitter.js';
 import type {
   Connector,
   ConnectorEvents,
+  DownloadMediaArgs,
   InboundChat,
   InboundContact,
   InboundGroupMember,
@@ -36,6 +37,14 @@ export class FakeConnector extends TypedEmitter<ConnectorEvents> implements Conn
 
   isRegistered(): boolean {
     return false;
+  }
+
+  refreshGroup(_jid: string): void {
+    // no-op
+  }
+
+  async downloadMedia(_args: DownloadMediaArgs): Promise<Buffer> {
+    throw new Error('FakeConnector.downloadMedia not implemented');
   }
 
   /* Test helpers */

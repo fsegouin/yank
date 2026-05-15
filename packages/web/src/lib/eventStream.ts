@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { DaemonEventSchema, type DaemonEvent, type Chat } from '@yank/shared';
+import { DaemonEventSchema, type DaemonEvent, type Chat, type MessagesPage } from '@yank/shared';
 import { queryKeys } from './queryKeys.js';
+import { useEditErrorsStore } from '../state/editErrors.js';
 
 const BACKOFF_INITIAL_MS = 1_000;
 const BACKOFF_MAX_MS = 30_000;
@@ -17,6 +18,8 @@ const NAMED_EVENTS = [
   'media-ready',
   'chat-assignment',
   'contact-update',
+  'message-edit',
+  'message-edit-failed',
 ] as const;
 
 export interface UseEventStreamOptions {
@@ -82,6 +85,32 @@ export function useEventStream(opts: UseEventStreamOptions = {}): void {
           if (prev !== undefined) {
             qc.setQueryData(queryKeys.contact(evt.contactId), { ...prev, displayName: evt.displayName });
           }
+          return;
+        }
+        case 'message-edit': {
+          // Patch all pages of the messages cache for any chat that contains this messageId.
+          // Scan all cached message queries and patch in place.
+          qc.setQueriesData<{ pages: MessagesPage[]; pageParams: unknown[] }>(
+            { queryKey: ['messages'] },
+            (old) => {
+              if (!old) return old;
+              const { messageId, text, editedAt } = evt;
+              return {
+                ...old,
+                pages: old.pages.map((page) => ({
+                  ...page,
+                  messages: page.messages.map((m) =>
+                    m.id === messageId ? { ...m, text, editedAt } : m,
+                  ),
+                })),
+              };
+            },
+          );
+          return;
+        }
+        case 'message-edit-failed': {
+          // Surface per-row error affordance via editErrors Zustand store
+          useEditErrorsStore.getState().setError(evt.messageId);
           return;
         }
         // qr / sync-progress / pair-code are consumed via onEvent by the setup screen.

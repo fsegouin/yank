@@ -400,44 +400,100 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
   async downloadMedia(args: DownloadMediaArgs): Promise<Buffer> {
     const sock = this.sock;
     if (!sock) throw new Error('connector not started');
-    const m = args.media;
+
     // Build the proto sub-message matching the kind. Baileys' downloadMediaMessage
     // only reads the directPath/mediaKey/url/sha fields from this, plus the `key`
     // for the reupload request — so we don't need a full WAMessage shape.
-    const mediaPart: Record<string, unknown> = {
-      mimetype: m.mime,
-      fileLength: m.sizeBytes,
-      url: m.url,
-      directPath: m.directPath,
-      mediaKey: m.mediaKey ? Buffer.from(m.mediaKey, 'base64') : undefined,
-      fileSha256: m.fileSha256 ? Buffer.from(m.fileSha256, 'base64') : undefined,
-      fileEncSha256: m.fileEncSha256 ? Buffer.from(m.fileEncSha256, 'base64') : undefined,
-    };
-    const partKey =
-      args.kind === 'image'
-        ? 'imageMessage'
-        : args.kind === 'video'
-          ? 'videoMessage'
-          : args.kind === 'audio'
-            ? 'audioMessage'
-            : args.kind === 'document'
-              ? 'documentMessage'
-              : 'stickerMessage';
-    const messageContent: Record<string, unknown> = { [partKey]: mediaPart };
-    const fakeMessage = {
-      key: { remoteJid: args.chatJid, id: args.waMessageId, fromMe: args.fromMe },
-      message: messageContent,
+    const buildFakeMessage = (media: DownloadMediaArgs['media']) => {
+      const mediaPart: Record<string, unknown> = {
+        mimetype: media.mime,
+        fileLength: media.sizeBytes,
+        url: media.url,
+        directPath: media.directPath,
+        mediaKey: media.mediaKey ? Buffer.from(media.mediaKey, 'base64') : undefined,
+        fileSha256: media.fileSha256 ? Buffer.from(media.fileSha256, 'base64') : undefined,
+        fileEncSha256: media.fileEncSha256
+          ? Buffer.from(media.fileEncSha256, 'base64')
+          : undefined,
+      };
+      const partKey =
+        args.kind === 'image'
+          ? 'imageMessage'
+          : args.kind === 'video'
+            ? 'videoMessage'
+            : args.kind === 'audio'
+              ? 'audioMessage'
+              : args.kind === 'document'
+                ? 'documentMessage'
+                : 'stickerMessage';
+      return {
+        key: { remoteJid: args.chatJid, id: args.waMessageId, fromMe: args.fromMe },
+        message: { [partKey]: mediaPart } as Record<string, unknown>,
+      };
     };
 
-    const buf = await downloadMediaMessage(
-      fakeMessage as never,
-      'buffer',
-      {},
-      {
-        reuploadRequest: sock.updateMediaMessage.bind(sock),
-        logger: undefined as never,
-      },
-    );
-    return buf;
+    const attempt = async (media: DownloadMediaArgs['media']): Promise<Buffer> => {
+      const fakeMessage = buildFakeMessage(media);
+      const buf = await downloadMediaMessage(
+        fakeMessage as never,
+        'buffer',
+        {},
+        {
+          reuploadRequest: sock.updateMediaMessage.bind(sock),
+          logger: undefined as never,
+        },
+      );
+      return buf as Buffer;
+    };
+
+    try {
+      return await attempt(args.media);
+    } catch (err) {
+      // Baileys' built-in retry only fires for 404/410. Stale CDN URLs commonly
+      // return 403 — handle that ourselves by re-fetching media info from WA.
+      if (!isStaleMediaError(err)) throw err;
+
+      const refreshed = await sock.updateMediaMessage(buildFakeMessage(args.media) as never);
+      const refreshedPart = pickMediaPart(refreshed, args.kind);
+      if (!refreshedPart) throw err;
+      return await attempt({
+        ...args.media,
+        url: refreshedPart.url ?? args.media.url,
+        directPath: refreshedPart.directPath ?? args.media.directPath,
+        mediaKey: refreshedPart.mediaKey
+          ? Buffer.from(refreshedPart.mediaKey).toString('base64')
+          : args.media.mediaKey,
+      });
+    }
   }
+}
+
+function isStaleMediaError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const e = err as { output?: { statusCode?: number }; response?: { status?: number } };
+  const code = e.output?.statusCode ?? e.response?.status;
+  return code === 403 || code === 404 || code === 410;
+}
+
+function pickMediaPart(
+  refreshed: unknown,
+  kind: 'image' | 'video' | 'audio' | 'document' | 'sticker',
+): { url?: string; directPath?: string; mediaKey?: Uint8Array | null } | null {
+  if (!refreshed || typeof refreshed !== 'object') return null;
+  const message = (refreshed as { message?: Record<string, unknown> }).message;
+  if (!message) return null;
+  const partKey =
+    kind === 'image'
+      ? 'imageMessage'
+      : kind === 'video'
+        ? 'videoMessage'
+        : kind === 'audio'
+          ? 'audioMessage'
+          : kind === 'document'
+            ? 'documentMessage'
+            : 'stickerMessage';
+  const part = message[partKey] as
+    | { url?: string; directPath?: string; mediaKey?: Uint8Array | null }
+    | undefined;
+  return part ?? null;
 }

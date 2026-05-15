@@ -49,6 +49,30 @@ export function MessageRow({
     );
   }
   const ts = fmtTime(message.ts);
+  if (message.deletedAt) {
+    return (
+      <div className={styles.msg + (showHead ? '' : ' ' + styles.compact)}>
+        <div className={styles.avatarSlot}>
+          {showHead ? (
+            <Avatar seed={message.senderJid} initials={senderInitials} size={36} />
+          ) : (
+            <div className={styles.hoverTime}>{ts}</div>
+          )}
+        </div>
+        <div className={styles.body}>
+          {showHead && (
+            <div className={styles.head}>
+              <span className={styles.author}>{senderName}</span>
+              <span className={styles.time + ' mono'}>{ts}</span>
+            </div>
+          )}
+          <div className={styles.deletedTombstone}>
+            <em>This message was deleted</em>
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className={styles.msg + (showHead ? '' : ' ' + styles.compact)}>
       <div className={styles.avatarSlot}>

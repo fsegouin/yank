@@ -211,6 +211,22 @@ export async function upsertReaction(
   return { id: target.id, chatId: target.chatId };
 }
 
+export async function markMessageDeleted(
+  ctx: RepoCtx,
+  waMessageId: string,
+  ts: Date,
+): Promise<{ id: string; chatId: string } | null> {
+  // Setting text: null prevents the original content from leaking through the
+  // API once a message has been revoked. The UI uses deletedAt to render a
+  // tombstone in place of the original row.
+  const result = await ctx.db
+    .update(messages)
+    .set({ deletedAt: ts, text: null })
+    .where(and(eq(messages.userId, ctx.userId), eq(messages.waMessageId, waMessageId)))
+    .returning({ id: messages.id, chatId: messages.chatId });
+  return result[0] ?? null;
+}
+
 export async function syncGroupMembers(
   ctx: RepoCtx,
   chatJid: string,

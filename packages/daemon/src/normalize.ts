@@ -1,5 +1,11 @@
 import { proto } from '@whiskeysockets/baileys';
-import type { InboundChat, InboundContact, InboundMessage, InboundReaction } from './connector.js';
+import type {
+  InboundChat,
+  InboundContact,
+  InboundDeletion,
+  InboundMessage,
+  InboundReaction,
+} from './connector.js';
 
 export interface NormalizedInbound {
   msg: InboundMessage;
@@ -14,6 +20,8 @@ export function normalizeBaileysMessage(m: proto.IWebMessageInfo): NormalizedInb
 
   // Reactions are routed via normalizeBaileysReaction — callers should try that first.
   if (m.message?.reactionMessage) return null;
+  // Deletions are routed via normalizeBaileysDeletion.
+  if (m.message?.protocolMessage?.type === proto.Message.ProtocolMessage.Type.REVOKE) return null;
 
   const extracted = extractContent(m.message);
   if (!extracted) return null;
@@ -53,6 +61,20 @@ export function normalizeBaileysMessage(m: proto.IWebMessageInfo): NormalizedInb
       jid: senderJid === 'me' ? remoteJid : senderJid,
       pushName: m.pushName ?? undefined,
     },
+  };
+}
+
+export function normalizeBaileysDeletion(m: proto.IWebMessageInfo): InboundDeletion | null {
+  const protocolMsg = m.message?.protocolMessage;
+  if (!protocolMsg) return null;
+  if (protocolMsg.type !== proto.Message.ProtocolMessage.Type.REVOKE) return null;
+  const targetWaMessageId = protocolMsg.key?.id;
+  const chatJid = m.key?.remoteJid;
+  if (!targetWaMessageId || !chatJid) return null;
+  return {
+    chatJid,
+    targetWaMessageId,
+    ts: new Date(Number(m.messageTimestamp ?? 0) * 1000),
   };
 }
 
@@ -119,10 +141,9 @@ function extractContent(msg: proto.IMessage | null | undefined): ExtractedConten
     return { kind: 'sticker', text: null, media: mediaFromSticker(msg.stickerMessage) };
   }
   if (msg.protocolMessage) {
-    if (msg.protocolMessage.type === proto.Message.ProtocolMessage.Type.REVOKE) {
-      return { kind: 'system', text: 'message deleted', deletedAt: new Date() };
-    }
-    // Other protocol messages (ephemeral settings, key share, history sync, etc.) — skip.
+    // REVOKE is routed via normalizeBaileysDeletion (handled by the caller before
+    // calling extractContent). Other protocol messages (ephemeral settings, key
+    // share, history sync, etc.) — skip.
     return null;
   }
   return null;

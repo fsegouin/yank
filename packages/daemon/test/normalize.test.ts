@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeBaileysMessage, normalizeBaileysReaction } from '../src/normalize.js';
+import {
+  normalizeBaileysDeletion,
+  normalizeBaileysMessage,
+  normalizeBaileysReaction,
+} from '../src/normalize.js';
 
 const baseMsg = {
   key: { remoteJid: '4477@s.whatsapp.net', id: 'WA-A', fromMe: false, participant: undefined },
@@ -66,14 +70,12 @@ describe('normalizeBaileysMessage', () => {
     expect(r).toBeNull();
   });
 
-  it('emits kind=system with deletedAt for protocolMessage REVOKE', () => {
+  it('returns null for protocolMessage REVOKE (route via normalizeBaileysDeletion)', () => {
     const r = normalizeBaileysMessage({
       ...baseMsg,
-      message: { protocolMessage: { type: 0 } }, // REVOKE
+      message: { protocolMessage: { type: 0, key: { id: 'WA-TARGET' } } }, // REVOKE
     } as unknown as Parameters<typeof normalizeBaileysMessage>[0]);
-    expect(r?.msg.kind).toBe('system');
-    expect(r?.msg.text).toBe('message deleted');
-    expect(r?.msg.deletedAt).toBeInstanceOf(Date);
+    expect(r).toBeNull();
   });
 
   it('returns null for reactionMessage payloads (route via normalizeBaileysReaction)', () => {
@@ -109,6 +111,37 @@ describe('normalizeBaileysMessage', () => {
       },
     } as unknown as Parameters<typeof normalizeBaileysMessage>[0]);
     expect(r?.msg.quotedWaId).toBe('WA-PARENT');
+  });
+});
+
+describe('normalizeBaileysDeletion', () => {
+  it('extracts target waMessageId + chatJid from REVOKE protocolMessage', () => {
+    const d = normalizeBaileysDeletion({
+      key: { remoteJid: '4477@s.whatsapp.net', id: 'WA-OUTER', fromMe: false },
+      messageTimestamp: 1715680800,
+      message: { protocolMessage: { type: 0, key: { id: 'WA-TARGET' } } }, // REVOKE
+    } as unknown as Parameters<typeof normalizeBaileysDeletion>[0]);
+    expect(d?.targetWaMessageId).toBe('WA-TARGET');
+    expect(d?.chatJid).toBe('4477@s.whatsapp.net');
+    expect(d?.ts).toBeInstanceOf(Date);
+  });
+
+  it('returns null for non-REVOKE protocol messages', () => {
+    const d = normalizeBaileysDeletion({
+      key: { remoteJid: '4477@s.whatsapp.net', id: 'WA-OUTER', fromMe: false },
+      messageTimestamp: 1715680800,
+      message: { protocolMessage: { type: 3, key: { id: 'WA-TARGET' } } }, // EPHEMERAL_SETTING
+    } as unknown as Parameters<typeof normalizeBaileysDeletion>[0]);
+    expect(d).toBeNull();
+  });
+
+  it('returns null when there is no protocolMessage', () => {
+    const d = normalizeBaileysDeletion({
+      key: { remoteJid: '4477@s.whatsapp.net', id: 'WA-OUTER', fromMe: false },
+      messageTimestamp: 1715680800,
+      message: { conversation: 'hi' },
+    } as unknown as Parameters<typeof normalizeBaileysDeletion>[0]);
+    expect(d).toBeNull();
   });
 });
 

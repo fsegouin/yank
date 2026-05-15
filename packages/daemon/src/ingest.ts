@@ -3,6 +3,7 @@ import type {
   Connector,
   InboundChat,
   InboundContact,
+  InboundDeletion,
   InboundGroupMember,
   InboundMessage,
   InboundPresence,
@@ -14,6 +15,7 @@ import {
   applyReceipt,
   insertInbound,
   insertMessageMedia,
+  markMessageDeleted,
   syncGroupMembers,
   updatePresence,
   upsertChat,
@@ -88,6 +90,25 @@ export function attachInbound({ db, userId, connector, bus }: AttachInboundOpts)
         });
       } catch (err) {
         console.error('[ingest] failed to persist reaction', err);
+      }
+    })();
+  });
+
+  connector.on('delete', (deletion: InboundDeletion) => {
+    void (async () => {
+      try {
+        const row = await markMessageDeleted(ctx, deletion.targetWaMessageId, deletion.ts);
+        if (!row) return;
+        // Coarse invalidation — a `message` event tells the client to refetch
+        // the affected message page so the tombstone renders.
+        await bus.publish({
+          type: 'message',
+          userId,
+          chatId: row.chatId,
+          messageId: row.id,
+        });
+      } catch (err) {
+        console.error('[ingest] failed to mark message deleted', err);
       }
     })();
   });

@@ -48,6 +48,12 @@ export interface InboundReaction {
   ts: Date;
 }
 
+export interface InboundDeletion {
+  chatJid: string;
+  targetWaMessageId: string;
+  ts: Date;
+}
+
 export type PresenceStatus = 'available' | 'unavailable' | 'composing' | 'paused' | 'recording';
 
 export interface InboundPresence {
@@ -87,6 +93,7 @@ export interface ConnectorEvents {
   contact: (contact: InboundContact) => void;
   status: (info: OutboundStatus) => void;
   reaction: (reaction: InboundReaction) => void;
+  delete: (deletion: InboundDeletion) => void;
   presence: (update: InboundPresence) => void;
   'group-members': (chatJid: string, members: InboundGroupMember[]) => void;
   receipt: (receipt: InboundReceipt) => void;

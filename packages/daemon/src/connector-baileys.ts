@@ -13,7 +13,11 @@ import type {
   SendArgs,
   SendResult,
 } from './connector.js';
-import { normalizeBaileysMessage, normalizeBaileysReaction } from './normalize.js';
+import {
+  normalizeBaileysDeletion,
+  normalizeBaileysMessage,
+  normalizeBaileysReaction,
+} from './normalize.js';
 import { loadAuthState } from './auth-state.js';
 
 export interface BaileysConnectorOpts {
@@ -125,6 +129,11 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
 
       // Ingest the history batch via the same path as live messages.
       for (const m of h.messages ?? []) {
+        const del = normalizeBaileysDeletion(m);
+        if (del) {
+          this.emit('delete', del);
+          continue;
+        }
         const reaction = normalizeBaileysReaction(m);
         if (reaction) {
           this.emit('reaction', reaction);
@@ -154,6 +163,11 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
 
     sock.ev.on('messages.upsert', ({ messages: msgs }) => {
       for (const m of msgs) {
+        const del = normalizeBaileysDeletion(m);
+        if (del) {
+          this.emit('delete', del);
+          continue;
+        }
         const reaction = normalizeBaileysReaction(m);
         if (reaction) {
           this.emit('reaction', reaction);

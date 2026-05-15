@@ -28,6 +28,7 @@ export function TriageCard({ chat, focused, isFocused, onAssign }: TriageCardPro
 
   return (
     <div
+      data-testid="triage-card"
       className={styles.card}
       data-focused={isFocusedEffective ? 'true' : 'false'}
       role="article"

@@ -27,7 +27,7 @@ export function UndoToast() {
   };
 
   return (
-    <div className={styles.pill} role="status" aria-live="polite">
+    <div data-testid="undo-toast" className={styles.pill} role="status" aria-live="polite">
       <span className={styles.label}>{toast.label}</span>
       <button type="button" className={styles.undoBtn} onClick={handleUndo}>
         Undo

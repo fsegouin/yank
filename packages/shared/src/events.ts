@@ -150,6 +150,14 @@ export const DownloadMediaCommand = Base.extend({
   messageId: z.string().uuid(),
 });
 
+export const EditMessageCommand = Base.extend({
+  type: z.literal('edit-message'),
+  messageId: z.string().uuid(),
+  waMessageId: z.string().min(1),
+  chatJid: z.string().min(1),
+  text: z.string().min(1).max(65000),
+});
+
 export const ApiCommandSchema = z.discriminatedUnion('type', [
   PairCommand,
   SendCommand,
@@ -157,6 +165,7 @@ export const ApiCommandSchema = z.discriminatedUnion('type', [
   MarkReadCommand,
   TypingCommand,
   DownloadMediaCommand,
+  EditMessageCommand,
 ]);
 
 export type ApiCommand = z.infer<typeof ApiCommandSchema>;

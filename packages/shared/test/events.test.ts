@@ -117,3 +117,30 @@ describe('M4 SSE events', () => {
     expect(evt.type).toBe('media-breaker-state');
   });
 });
+
+describe('M4 commands', () => {
+  it('parses edit-message command', () => {
+    const cmd = ApiCommandSchema.parse({
+      userId: '01938b3a-8b1b-7c00-a000-000000000001',
+      type: 'edit-message',
+      messageId: '01938b3a-8b1b-7c00-a000-000000000003',
+      waMessageId: '3EB0ABCDEF',
+      chatJid: '11111@s.whatsapp.net',
+      text: 'updated',
+    });
+    expect(cmd.type).toBe('edit-message');
+  });
+
+  it('rejects edit-message with empty text', () => {
+    expect(() =>
+      ApiCommandSchema.parse({
+        userId: '01938b3a-8b1b-7c00-a000-000000000001',
+        type: 'edit-message',
+        messageId: '01938b3a-8b1b-7c00-a000-000000000003',
+        waMessageId: '3EB0ABCDEF',
+        chatJid: '11111@s.whatsapp.net',
+        text: '',
+      }),
+    ).toThrow();
+  });
+});

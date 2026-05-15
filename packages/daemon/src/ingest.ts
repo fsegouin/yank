@@ -1,11 +1,12 @@
 import { and, eq } from 'drizzle-orm';
 import type { Db } from '@yank/db';
-import { chats } from '@yank/db/schema';
+import { chats, messages } from '@yank/db/schema';
 import type {
   Connector,
   InboundChat,
   InboundContact,
   InboundDeletion,
+  InboundEdit,
   InboundGroupMember,
   InboundMessage,
   InboundPresence,
@@ -111,6 +112,35 @@ export function attachInbound({ db, userId, connector, bus }: AttachInboundOpts)
         });
       } catch (err) {
         console.error('[ingest] failed to mark message deleted', err);
+      }
+    })();
+  });
+
+  connector.on('edit', (edit: InboundEdit) => {
+    void (async () => {
+      try {
+        const editedAt = new Date();
+        const rows = await db
+          .update(messages)
+          .set({ text: edit.text, editedAt })
+          .where(
+            and(
+              eq(messages.userId, userId),
+              eq(messages.waMessageId, edit.targetWaMessageId),
+            ),
+          )
+          .returning({ id: messages.id });
+        const localId = rows[0]?.id;
+        if (!localId) return; // message not in our DB (e.g. history not yet synced)
+        await bus.publish({
+          type: 'message-edit',
+          userId,
+          messageId: localId,
+          text: edit.text,
+          editedAt: editedAt.toISOString(),
+        });
+      } catch (err) {
+        console.error('[ingest] failed to handle inbound edit', err);
       }
     })();
   });

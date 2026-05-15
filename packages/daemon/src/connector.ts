@@ -1,4 +1,7 @@
 import type { TypedEventEmitter } from './typed-emitter.js';
+import type { InboundEdit } from './normalize.js';
+
+export type { InboundEdit } from './normalize.js';
 
 export type ChatType = 'dm' | 'group' | 'community' | 'newsletter';
 
@@ -97,6 +100,7 @@ export interface ConnectorEvents {
   status: (info: OutboundStatus) => void;
   reaction: (reaction: InboundReaction) => void;
   delete: (deletion: InboundDeletion) => void;
+  edit: (edit: InboundEdit) => void;
   presence: (update: InboundPresence) => void;
   'group-members': (chatJid: string, members: InboundGroupMember[]) => void;
   receipt: (receipt: InboundReceipt) => void;

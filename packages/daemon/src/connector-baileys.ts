@@ -18,6 +18,7 @@ import type {
 } from './connector.js';
 import {
   normalizeBaileysDeletion,
+  normalizeBaileysEdit,
   normalizeBaileysMessage,
   normalizeBaileysReaction,
 } from './normalize.js';
@@ -181,6 +182,13 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
           this.emit('delete', del);
           continue;
         }
+
+        const edit = normalizeBaileysEdit(m);
+        if (edit) {
+          this.emit('edit', edit);
+          continue;
+        }
+
         const reaction = normalizeBaileysReaction(m);
         if (reaction) {
           this.emit('reaction', reaction);
@@ -215,6 +223,13 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
           this.emit('delete', del);
           continue;
         }
+
+        const edit = normalizeBaileysEdit(m);
+        if (edit) {
+          this.emit('edit', edit);
+          continue;
+        }
+
         const reaction = normalizeBaileysReaction(m);
         if (reaction) {
           this.emit('reaction', reaction);

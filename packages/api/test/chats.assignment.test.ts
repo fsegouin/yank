@@ -8,7 +8,7 @@ import Redis from 'ioredis';
 import Fastify from 'fastify';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { createLogger, eventsChannel, newId } from '@yank/shared';
+import { eventsChannel, newId } from '@yank/shared';
 import { chats, chatAssignments } from '@yank/db/schema';
 import { ensureSingleUser } from '../src/bootstrap.js';
 import { createEventsBus } from '../src/events-bus.js';
@@ -53,7 +53,6 @@ describe('POST /api/chats/:id/assignment', () => {
     await eventsBus.start();
     const eventsPublisher = createEventsPublisher(redis, USER);
 
-    const log = createLogger({ service: 'assign-test', level: 'warn' });
     app = Fastify({ logger: false });
     registerChatsRoutes(app, { db, userId: USER, events: eventsPublisher });
     await app.listen({ port: 0, host: '127.0.0.1' });

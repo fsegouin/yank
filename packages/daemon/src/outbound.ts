@@ -42,6 +42,44 @@ async function resolveLocalId(ctx: OutboundCtx, waMessageId: string): Promise<st
   return r[0]?.id ?? waMessageId;
 }
 
+function classifyEditError(err: unknown): 'too-old' | 'protocol' | 'network' {
+  const msg = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
+  if (msg.includes('too old') || (msg.includes('edit') && msg.includes('old'))) return 'too-old';
+  if (msg.includes('econnreset') || msg.includes('timeout') || msg.includes('network')) return 'network';
+  return 'protocol';
+}
+
+export async function handleEditMessageCommand(
+  ctx: OutboundCtx,
+  cmd: Extract<ApiCommand, { type: 'edit-message' }>,
+): Promise<void> {
+  try {
+    await ctx.connector.editMessage(cmd.chatJid, cmd.waMessageId, cmd.text);
+
+    const editedAt = new Date();
+    await ctx.db
+      .update(messages)
+      .set({ text: cmd.text, editedAt })
+      .where(and(eq(messages.userId, ctx.userId), eq(messages.id, cmd.messageId)));
+
+    await ctx.bus.publish({
+      type: 'message-edit',
+      userId: ctx.userId,
+      messageId: cmd.messageId,
+      text: cmd.text,
+      editedAt: editedAt.toISOString(),
+    });
+  } catch (err) {
+    const reason = classifyEditError(err);
+    await ctx.bus.publish({
+      type: 'message-edit-failed',
+      userId: ctx.userId,
+      messageId: cmd.messageId,
+      reason,
+    });
+  }
+}
+
 export async function handleSendCommand(
   ctx: OutboundCtx,
   cmd: Extract<ApiCommand, { type: 'send' }>,

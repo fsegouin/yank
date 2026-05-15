@@ -515,6 +515,11 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
       });
     }
   }
+
+  // TODO(3a.3): implement with Baileys protocolMessage EDIT
+  async editMessage(_chatJid: string, _waMessageId: string, _text: string): Promise<void> {
+    throw new Error('editMessage not yet implemented in BaileysConnector');
+  }
 }
 
 function isStaleMediaError(err: unknown): boolean {

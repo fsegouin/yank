@@ -130,6 +130,12 @@ export interface Connector extends TypedEventEmitter<ConnectorEvents> {
    * message. Uses Baileys' `reuploadRequest` hook to recover from stale `directPath`s.
    */
   downloadMedia(args: DownloadMediaArgs): Promise<Buffer>;
+  /**
+   * Edit an already-sent WhatsApp message. Sends Baileys' protocolMessage EDIT.
+   * Throws if the message is too old (>15 min on WA's servers), the socket is
+   * disconnected, or the message type is unsupported.
+   */
+  editMessage(chatJid: string, waMessageId: string, text: string): Promise<void>;
 }
 
 export interface DownloadMediaArgs {

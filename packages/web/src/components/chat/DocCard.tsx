@@ -1,5 +1,6 @@
 import type { Media } from '@yank/shared';
 import { useMediaLoad } from '../../hooks/useMediaLoad.js';
+import { MediaPausedChip } from './MediaPausedChip.js';
 import styles from './DocCard.module.css';
 
 function ext(mime: string): string {
@@ -71,6 +72,7 @@ export function DocCard({ messageId, media, name }: Props) {
             : media.status === 'failed'
               ? ' · failed (tap to retry)'
               : ' · tap to download'}
+          <MediaPausedChip />
         </div>
       </div>
     </button>

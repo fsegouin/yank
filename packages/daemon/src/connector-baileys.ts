@@ -6,6 +6,7 @@ import {
   type WASocket,
 } from '@whiskeysockets/baileys';
 import type { Boom } from '@hapi/boom';
+import type { Logger } from '@yank/shared';
 import { TypedEmitter } from './typed-emitter.js';
 import type {
   Connector,
@@ -25,6 +26,25 @@ import { loadAuthState } from './auth-state.js';
 export interface BaileysConnectorOpts {
   authDir: string;
   userId: string;
+  logger?: Logger;
+}
+
+// Minimal pino-compatible no-op logger. Baileys calls `.info/.warn/.error/.debug/.trace/.fatal`
+// and `.child()` on the logger we pass to `downloadMediaMessage`; if `logger` is undefined,
+// Baileys crashes on the retry path (`messages.js` calls `ctx.logger.info(...)`).
+function buildNoopLogger(): unknown {
+  const log = () => {};
+  const obj = {
+    level: 'silent',
+    info: log,
+    warn: log,
+    error: log,
+    debug: log,
+    trace: log,
+    fatal: log,
+    child: () => obj,
+  };
+  return obj;
 }
 
 export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements Connector {
@@ -37,9 +57,11 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
   private historySynced = 0;
   // JIDs we've already requested group metadata for this session — avoid repeats.
   private groupMetaRequested = new Set<string>();
+  private readonly logger: unknown;
 
   constructor(private opts: BaileysConnectorOpts) {
     super();
+    this.logger = opts.logger ?? buildNoopLogger();
   }
 
   async start(): Promise<void> {
@@ -440,7 +462,7 @@ export class BaileysConnector extends TypedEmitter<ConnectorEvents> implements C
         {},
         {
           reuploadRequest: sock.updateMediaMessage.bind(sock),
-          logger: undefined as never,
+          logger: this.logger as never,
         },
       );
       return buf as Buffer;

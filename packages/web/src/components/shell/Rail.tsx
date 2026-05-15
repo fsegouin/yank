@@ -1,6 +1,6 @@
 import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { useUiStore } from '../../state/ui.js';
-import { useChats } from '../../lib/queries.js';
+import { useTriageCount } from '../../lib/queries.js';
 import { RailButton } from './RailButton.js';
 import {
   SearchIcon,
@@ -19,8 +19,7 @@ export function Rail() {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const workspace = useUiStore((s) => s.workspace);
   const setWorkspace = useUiStore((s) => s.setWorkspace);
-  const { data: chats = [] } = useChats();
-  const triageCount = chats.filter((c) => c.workspace === 'triage').length;
+  const triageCount = useTriageCount();
 
   const railView: 'work' | 'personal' | 'triage' | RailView =
     path === '/triage'
@@ -63,17 +62,34 @@ export function Rail() {
           void navigate({ to: '/' });
         }}
       />
-      <RailButton
-        workspace="triage"
-        mono="T"
-        count={triageCount}
-        active={railView === 'triage'}
-        title="Triage · ⌘3"
-        onClick={() => {
-          setWorkspace('triage');
-          void navigate({ to: '/triage' });
-        }}
-      />
+      <div style={{ position: 'relative' }}>
+        <RailButton
+          workspace="triage"
+          mono="T"
+          count={triageCount}
+          active={railView === 'triage'}
+          title="Triage · ⌘3"
+          onClick={() => {
+            setWorkspace('triage');
+            void navigate({ to: '/triage' });
+          }}
+        />
+        {triageCount > 0 && (
+          <span
+            data-triage-dot
+            style={{
+              position: 'absolute',
+              top: 4,
+              right: 4,
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              background: 'var(--c-triage)',
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+      </div>
 
       <div className={styles.divider} />
 

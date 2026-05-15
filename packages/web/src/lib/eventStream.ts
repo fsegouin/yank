@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { DaemonEventSchema, type DaemonEvent } from '@yank/shared';
+import { DaemonEventSchema, type DaemonEvent, type Chat } from '@yank/shared';
 import { queryKeys } from './queryKeys.js';
 
 const BACKOFF_INITIAL_MS = 1_000;
@@ -15,6 +15,7 @@ const NAMED_EVENTS = [
   'status',
   'pair-code',
   'media-ready',
+  'chat-assignment',
 ] as const;
 
 export interface UseEventStreamOptions {
@@ -56,6 +57,13 @@ export function useEventStream(opts: UseEventStreamOptions = {}): void {
           // Media bytes are now available; force the messages caches to refetch so
           // the message rows pick up the populated media.url.
           qc.invalidateQueries({ queryKey: ['messages'] });
+          return;
+        case 'chat-assignment':
+          qc.setQueryData<Chat[]>(queryKeys.chats(), (old) =>
+            old?.map((c) =>
+              c.id === evt.chatId ? { ...c, workspace: evt.workspace } : c,
+            ),
+          );
           return;
         // qr / sync-progress / pair-code are consumed via onEvent by the setup screen.
         default:

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { WorkspaceSchema } from './dto.js';
 
 // Events: daemon → Redis pub/sub `events:user:<userId>` → api → SSE → browser
 
@@ -54,6 +55,39 @@ export const MediaReadyEvent = Base.extend({
   status: z.enum(['ready', 'failed']),
 });
 
+export const ChatAssignmentEvent = Base.extend({
+  type: z.literal('chat-assignment'),
+  chatId: z.string().uuid(),
+  workspace: WorkspaceSchema,
+  assignedAt: z.string().datetime(),
+});
+
+export const ContactUpdateEvent = Base.extend({
+  type: z.literal('contact-update'),
+  contactId: z.string().uuid(),
+  displayName: z.string(),
+  updatedAt: z.string().datetime(),
+});
+
+export const MessageEditEvent = Base.extend({
+  type: z.literal('message-edit'),
+  messageId: z.string().uuid(),
+  text: z.string(),
+  editedAt: z.string().datetime(),
+});
+
+export const MessageEditFailedEvent = Base.extend({
+  type: z.literal('message-edit-failed'),
+  messageId: z.string().uuid(),
+  reason: z.enum(['too-old', 'protocol', 'network']),
+});
+
+export const MediaBreakerStateEvent = Base.extend({
+  type: z.literal('media-breaker-state'),
+  state: z.enum(['open', 'closed', 'half-open']),
+  retryAt: z.string().datetime().optional(),
+});
+
 export const DaemonEventSchema = z.discriminatedUnion('type', [
   QrEvent,
   PairCodeEvent,
@@ -64,6 +98,11 @@ export const DaemonEventSchema = z.discriminatedUnion('type', [
   MessageEvent,
   MessageStatusEvent,
   MediaReadyEvent,
+  ChatAssignmentEvent,
+  ContactUpdateEvent,
+  MessageEditEvent,
+  MessageEditFailedEvent,
+  MediaBreakerStateEvent,
 ]);
 
 export type DaemonEvent = z.infer<typeof DaemonEventSchema>;

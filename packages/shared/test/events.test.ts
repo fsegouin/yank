@@ -59,3 +59,61 @@ describe('ApiCommandSchema', () => {
     expect(c.type).toBe('send');
   });
 });
+
+const userId = '01938b3a-8b1b-7c00-a000-000000000001';
+const chatId = '01938b3a-8b1b-7c00-a000-000000000002';
+const messageId = '01938b3a-8b1b-7c00-a000-000000000003';
+const contactId = '01938b3a-8b1b-7c00-a000-000000000004';
+
+describe('M4 SSE events', () => {
+  it('parses chat-assignment', () => {
+    const evt = DaemonEventSchema.parse({
+      userId, type: 'chat-assignment',
+      chatId, workspace: 'personal',
+      assignedAt: '2026-05-15T12:00:00.000Z',
+    });
+    expect(evt.type).toBe('chat-assignment');
+  });
+
+  it('parses contact-update', () => {
+    const evt = DaemonEventSchema.parse({
+      userId, type: 'contact-update',
+      contactId, displayName: 'Alice',
+      updatedAt: '2026-05-15T12:00:00.000Z',
+    });
+    expect(evt.type).toBe('contact-update');
+  });
+
+  it('parses message-edit', () => {
+    const evt = DaemonEventSchema.parse({
+      userId, type: 'message-edit',
+      messageId, text: 'edited text',
+      editedAt: '2026-05-15T12:00:00.000Z',
+    });
+    expect(evt.type).toBe('message-edit');
+  });
+
+  it('parses message-edit-failed', () => {
+    const evt = DaemonEventSchema.parse({
+      userId, type: 'message-edit-failed',
+      messageId, reason: 'too-old',
+    });
+    expect(evt.type).toBe('message-edit-failed');
+  });
+
+  it('parses media-breaker-state open with retryAt', () => {
+    const evt = DaemonEventSchema.parse({
+      userId, type: 'media-breaker-state',
+      state: 'open', retryAt: '2026-05-15T12:05:00.000Z',
+    });
+    expect(evt.type).toBe('media-breaker-state');
+  });
+
+  it('parses media-breaker-state closed without retryAt', () => {
+    const evt = DaemonEventSchema.parse({
+      userId, type: 'media-breaker-state',
+      state: 'closed',
+    });
+    expect(evt.type).toBe('media-breaker-state');
+  });
+});

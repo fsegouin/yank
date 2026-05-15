@@ -3,11 +3,14 @@ import { useEffect, useRef } from 'react';
 /**
  * Auto-scroll behaviour for chat message lists.
  *
- * - On `scrollKey` change (chat switched), force-scroll to the bottom after
- *   the next paint so the user always lands on the latest message.
- * - On `contentTrigger` change with the same `scrollKey` (new message in the
- *   active chat, or pagination prepended older messages), only scroll-to-bottom
- *   if the user is within 100px of it ("stickiness").
+ * - When `scrollKey` changes (e.g. user switched chats), the list is marked
+ *   "needs bottom landing". Every subsequent render/content change pins to
+ *   the bottom until the content has actually grown past the viewport — only
+ *   then is the flag cleared. This handles the case where the first render
+ *   for a new chat has empty content (data still loading).
+ * - Once landed for the current `scrollKey`, switches to "sticky bottom":
+ *   only auto-scroll on new content if the user is within 100px of the
+ *   bottom. If they scrolled up to read history, their position is preserved.
  */
 export function useAutoScroll<T extends HTMLElement>(
   scrollKey: string,
@@ -15,32 +18,30 @@ export function useAutoScroll<T extends HTMLElement>(
 ) {
   const ref = useRef<T>(null);
   const lastKey = useRef<string | null>(null);
-  const justSwitched = useRef(false);
+  const landed = useRef(false);
 
-  // Mark the switch synchronously when scrollKey changes, so the next
-  // contentTrigger effect knows to force-bottom.
+  // Detect chat switch synchronously so the effect on this same render sees it.
   if (lastKey.current !== scrollKey) {
     lastKey.current = scrollKey;
-    justSwitched.current = true;
+    landed.current = false;
   }
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
 
-    if (justSwitched.current) {
-      justSwitched.current = false;
-      // Defer to next frame so freshly-rendered messages have laid out.
-      requestAnimationFrame(() => {
-        if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
-      });
+    if (!landed.current) {
+      // Pin to bottom. If content hasn't filled the viewport yet (scrollHeight
+      // <= clientHeight), the assignment is a no-op visually and we leave the
+      // flag set so the next content change retries. Otherwise we've landed.
+      el.scrollTop = el.scrollHeight;
+      if (el.scrollHeight > el.clientHeight) {
+        landed.current = true;
+      }
       return;
     }
 
-    // TODO: when older messages are prepended via pagination, scrollHeight
-    // grows but scrollTop is unchanged, causing the visible content to jump
-    // upward. Preserving position would require snapshotting scrollHeight
-    // before render and adjusting scrollTop after. Out of scope for this fix.
+    // Sticky-bottom mode: only auto-scroll if user is near the bottom.
     const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
     if (distance < 100) {
       el.scrollTop = el.scrollHeight;

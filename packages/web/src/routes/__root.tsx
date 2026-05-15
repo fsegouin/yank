@@ -6,6 +6,7 @@ import { useUiStore } from '../state/ui.js';
 import { Rail } from '../components/shell/Rail.js';
 import { Sidebar } from '../components/shell/Sidebar.js';
 import { CommandPalette } from '../components/palette/CommandPalette.js';
+import { UndoToast } from '../components/primitives/UndoToast.js';
 import styles from './__root.module.css';
 
 export const Route = createRootRoute({
@@ -29,6 +30,7 @@ function RootLayout() {
       <Sidebar />
       <Outlet />
       {paletteOpen && <CommandPalette />}
+      <UndoToast />
     </div>
   );
 }

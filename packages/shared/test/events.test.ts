@@ -63,7 +63,7 @@ describe('ApiCommandSchema', () => {
 const userId = '01938b3a-8b1b-7c00-a000-000000000001';
 const chatId = '01938b3a-8b1b-7c00-a000-000000000002';
 const messageId = '01938b3a-8b1b-7c00-a000-000000000003';
-const contactId = '01938b3a-8b1b-7c00-a000-000000000004';
+const contactId = '4477@s.whatsapp.net';
 
 describe('M4 SSE events', () => {
   it('parses chat-assignment', () => {

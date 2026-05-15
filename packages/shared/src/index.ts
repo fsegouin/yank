@@ -18,6 +18,8 @@ export {
   MediaSchema,
   SendMessageBodySchema,
   AssignmentBodySchema,
+  ContactRenameBodySchema,
+  EditMessageBodySchema,
   WorkspaceSchema,
   ChatKindSchema,
   MessageKindSchema,
@@ -30,5 +32,7 @@ export {
   type Media,
   type SendMessageBody,
   type AssignmentBody,
+  type ContactRenameBody,
+  type EditMessageBody,
   type Workspace,
 } from './dto.js';

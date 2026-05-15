@@ -12,6 +12,7 @@ import { registerSetupRoutes } from './routes/setup.js';
 import { registerChatsRoutes } from './routes/chats.js';
 import { registerMessagesRoutes } from './routes/messages.js';
 import { registerMediaRoutes } from './routes/media.js';
+import { registerContactsRoutes } from './routes/contacts.js';
 
 const env = loadEnv();
 const log = createLogger({
@@ -38,6 +39,7 @@ registerSetupRoutes(app, { db, userId: env.YANK_USER_ID, commands: commandsBus }
 registerChatsRoutes(app, { db, userId: env.YANK_USER_ID, events: eventsPublisher });
 registerMessagesRoutes(app, { db, userId: env.YANK_USER_ID, commands: commandsBus });
 registerMediaRoutes(app, { db, userId: env.YANK_USER_ID, commands: commandsBus });
+registerContactsRoutes(app, { db, userId: env.YANK_USER_ID, eventsPublisher });
 
 const port = Number(process.env.PORT ?? 3001);
 try {

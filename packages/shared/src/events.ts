@@ -64,7 +64,7 @@ export const ChatAssignmentEvent = Base.extend({
 
 export const ContactUpdateEvent = Base.extend({
   type: z.literal('contact-update'),
-  contactId: z.string().uuid(),
+  contactId: z.string().min(1),
   displayName: z.string(),
   updatedAt: z.string().datetime(),
 });

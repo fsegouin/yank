@@ -1,4 +1,6 @@
+import { useRef, useCallback, useEffect } from 'react';
 import type { Message as MessageType } from '@yank/shared';
+import { useNavigate } from '@tanstack/react-router';
 import { Avatar } from '../primitives/Avatar.js';
 import { MessageText } from './MessageText.js';
 import { MessageRowActions } from './MessageRowActions.js';
@@ -9,6 +11,7 @@ import { ThreadLink } from './ThreadLink.js';
 import { MediaImage } from './MediaImage.js';
 import { DocCard } from './DocCard.js';
 import { VoiceNote } from './VoiceNote.js';
+import { useStar } from '../../lib/mutations.js';
 import styles from './Message.module.css';
 
 export interface MessageRowProps {
@@ -45,6 +48,57 @@ export function MessageRow({
   chatId = '',
   myJid = '',
 }: MessageRowProps) {
+  const navigate = useNavigate();
+  const star = useStar();
+  const rowRef = useRef<HTMLDivElement>(null);
+
+  // Keep a stable ref to the latest handler so add/removeEventListener always
+  // operate on the same function identity across re-renders.
+  const hoverKeyImplRef = useRef<((e: KeyboardEvent) => void) | null>(null);
+
+  hoverKeyImplRef.current = useCallback(
+    (e: KeyboardEvent) => {
+      const active = document.activeElement;
+      if (active instanceof HTMLElement) {
+        const tag = active.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || active.isContentEditable) return;
+      }
+      if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        void navigate({
+          to: '/c/$chatId/t/$messageId',
+          params: { chatId, messageId: message.id },
+        });
+      }
+      if (e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        star.mutate({ messageId: message.id, starred: !message.starred });
+      }
+    },
+    [chatId, message.id, message.starred, navigate, star],
+  );
+
+  // Stable dispatcher that delegates to the latest impl via the ref.
+  const stableListener = useRef<(e: KeyboardEvent) => void>(
+    (e: KeyboardEvent) => hoverKeyImplRef.current?.(e),
+  );
+
+  const onMouseEnter = useCallback(() => {
+    document.addEventListener('keydown', stableListener.current);
+  }, []);
+
+  const onMouseLeave = useCallback(() => {
+    document.removeEventListener('keydown', stableListener.current);
+  }, []);
+
+  // Ensure the listener is removed when the component unmounts (e.g. chat navigation).
+  useEffect(() => {
+    const listener = stableListener.current;
+    return () => {
+      document.removeEventListener('keydown', listener);
+    };
+  }, []);
+
   if (message.kind === 'system') {
     return (
       <div className={styles.system}>
@@ -55,7 +109,7 @@ export function MessageRow({
   const ts = fmtTime(message.ts);
   if (message.deletedAt) {
     return (
-      <div className={styles.msg + (showHead ? '' : ' ' + styles.compact)}>
+      <div data-testid="message-row" className={styles.msg + (showHead ? '' : ' ' + styles.compact)}>
         <div className={styles.avatarSlot}>
           {showHead ? (
             <Avatar seed={message.senderJid} initials={senderInitials} size={36} />
@@ -79,8 +133,11 @@ export function MessageRow({
   }
   return (
     <div
+      ref={rowRef}
       className={styles.msg + ' msgGroup' + (showHead ? '' : ' ' + styles.compact)}
       data-testid="message-row"
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       <div className={styles.avatarSlot}>
         {showHead ? (

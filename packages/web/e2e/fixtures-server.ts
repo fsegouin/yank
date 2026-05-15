@@ -18,6 +18,8 @@ const chat = {
   workspace: 'work',
   memberCount: 7,
   unreadCount: 0,
+  lastReadMessageId: null,
+  lastReadTs: null,
 };
 
 const message = {

@@ -34,6 +34,8 @@ export function registerChatsRoutes(app: FastifyInstance<any, any, any, any>, de
         contactDisplayName: contacts.displayName,
         contactPushName: contacts.pushName,
         contactBusinessName: contacts.businessName,
+        lastReadMessageId: readState.lastReadMessageId,
+        lastReadTs: readState.lastReadTs,
         memberCount: sql<number>`(SELECT COUNT(*)::int FROM ${groupMembers} WHERE ${groupMembers.chatId} = ${chats.id})`,
         unreadCount: sql<number>`(
           SELECT COUNT(*)::int FROM ${messages}
@@ -52,6 +54,10 @@ export function registerChatsRoutes(app: FastifyInstance<any, any, any, any>, de
       .leftJoin(
         contacts,
         and(eq(contacts.userId, chats.userId), eq(contacts.jid, chats.jid)),
+      )
+      .leftJoin(
+        readState,
+        and(eq(readState.userId, chats.userId), eq(readState.chatId, chats.id)),
       )
       .where(eq(chats.userId, deps.userId))
       .orderBy(desc(chats.lastMessageAt));
@@ -76,6 +82,8 @@ export function registerChatsRoutes(app: FastifyInstance<any, any, any, any>, de
         workspace: r.workspace ?? 'triage',
         memberCount: r.memberCount,
         unreadCount: r.unreadCount,
+        lastReadMessageId: r.lastReadMessageId ?? null,
+        lastReadTs: r.lastReadTs ? new Date(r.lastReadTs).toISOString() : null,
       };
     });
   });
@@ -97,6 +105,8 @@ export function registerChatsRoutes(app: FastifyInstance<any, any, any, any>, de
         contactDisplayName: contacts.displayName,
         contactPushName: contacts.pushName,
         contactBusinessName: contacts.businessName,
+        lastReadMessageId: readState.lastReadMessageId,
+        lastReadTs: readState.lastReadTs,
         memberCount: sql<number>`(SELECT COUNT(*)::int FROM ${groupMembers} WHERE ${groupMembers.chatId} = ${chats.id})`,
         unreadCount: sql<number>`(
           SELECT COUNT(*)::int FROM ${messages}
@@ -115,6 +125,10 @@ export function registerChatsRoutes(app: FastifyInstance<any, any, any, any>, de
       .leftJoin(
         contacts,
         and(eq(contacts.userId, chats.userId), eq(contacts.jid, chats.jid)),
+      )
+      .leftJoin(
+        readState,
+        and(eq(readState.userId, chats.userId), eq(readState.chatId, chats.id)),
       )
       .where(and(eq(chats.userId, deps.userId), eq(chats.id, req.params.id)))
       .limit(1);
@@ -140,6 +154,8 @@ export function registerChatsRoutes(app: FastifyInstance<any, any, any, any>, de
       workspace: r.workspace ?? 'triage',
       memberCount: r.memberCount,
       unreadCount: r.unreadCount,
+      lastReadMessageId: r.lastReadMessageId ?? null,
+      lastReadTs: r.lastReadTs ? new Date(r.lastReadTs).toISOString() : null,
     };
   });
 
@@ -166,6 +182,53 @@ export function registerChatsRoutes(app: FastifyInstance<any, any, any, any>, de
       .onConflictDoUpdate({
         target: chatAssignments.chatId,
         set: { workspace, assignedAt: new Date() },
+      });
+
+    reply.code(204);
+    return null;
+  });
+
+  app.post<{
+    Params: { id: string };
+    Body: { messageId: string };
+  }>('/api/chats/:id/read', async (req, reply) => {
+    const messageId = req.body?.messageId;
+    if (typeof messageId !== 'string' || messageId.length === 0) {
+      return reply.code(400).send({ error: 'invalid_message_id' });
+    }
+
+    // Look up the message and verify it belongs to this user + chat.
+    const msgRows = await deps.db
+      .select({ id: messages.id, ts: messages.ts })
+      .from(messages)
+      .where(
+        and(
+          eq(messages.userId, deps.userId),
+          eq(messages.id, messageId),
+          eq(messages.chatId, req.params.id),
+        ),
+      )
+      .limit(1);
+
+    const msg = msgRows[0];
+    if (!msg) return reply.code(404).send({ error: 'not_found' });
+
+    // Monotonic upsert — only advance, never regress.
+    await deps.db
+      .insert(readState)
+      .values({
+        userId: deps.userId,
+        chatId: req.params.id,
+        lastReadMessageId: msg.id,
+        lastReadTs: msg.ts,
+      })
+      .onConflictDoUpdate({
+        target: [readState.userId, readState.chatId],
+        set: {
+          lastReadMessageId: msg.id,
+          lastReadTs: msg.ts,
+        },
+        setWhere: sql`${readState.lastReadTs} < ${msg.ts} OR ${readState.lastReadTs} IS NULL`,
       });
 
     reply.code(204);

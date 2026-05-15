@@ -41,6 +41,8 @@ export const ChatSchema = z.object({
   workspace: WorkspaceSchema,
   memberCount: z.number().int().nonnegative(),
   unreadCount: z.number().int().nonnegative(),
+  lastReadMessageId: Uuid.nullable(),
+  lastReadTs: Iso.nullable(),
 });
 export type Chat = z.infer<typeof ChatSchema>;
 

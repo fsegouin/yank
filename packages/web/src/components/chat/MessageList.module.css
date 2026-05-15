@@ -20,3 +20,27 @@
   padding: 2px 10px;
   border-radius: 999px;
 }
+.unreadDivider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 18px 8px;
+  font-size: var(--fs-meta);
+  color: var(--c-warn);
+}
+.unreadDivider::before,
+.unreadDivider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--c-warn);
+  opacity: 0.4;
+}
+.unreadLabel {
+  font-family: var(--font-mono);
+  font-size: var(--fs-tiny);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0 6px;
+  white-space: nowrap;
+}

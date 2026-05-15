@@ -23,9 +23,14 @@ export function useSendMessage(chatId: string) {
 }
 
 export function useMarkRead(chatId: string) {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (messageId: string) =>
       apiFetch<void>(`/api/chats/${chatId}/read`, { method: 'POST', body: { messageId } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.chats() });
+      qc.invalidateQueries({ queryKey: queryKeys.chat(chatId) });
+    },
   });
 }
 

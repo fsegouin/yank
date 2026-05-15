@@ -18,6 +18,8 @@ const baseChat: Chat = {
   workspace: 'work',
   memberCount: 7,
   unreadCount: 0,
+  lastReadMessageId: null,
+  lastReadTs: null,
 };
 
 describe('ChatRow', () => {

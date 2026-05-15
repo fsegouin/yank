@@ -17,6 +17,8 @@ describe('DTO schemas', () => {
       workspace: 'work',
       memberCount: 7,
       unreadCount: 4,
+      lastReadMessageId: null,
+      lastReadTs: null,
     });
     expect(parsed.type).toBe('group');
   });
@@ -37,6 +39,8 @@ describe('DTO schemas', () => {
         workspace: 'nope',
         memberCount: 0,
         unreadCount: 0,
+        lastReadMessageId: null,
+        lastReadTs: null,
       }),
     ).toThrow();
   });

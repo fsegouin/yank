@@ -1,8 +1,9 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type { Message } from '@yank/shared';
 import { MessageRow } from './Message.js';
 import { useAutoScroll } from '../../hooks/useAutoScroll.js';
 import { useMessages, useChat, useChatMembers } from '../../lib/queries.js';
+import { useMarkRead } from '../../lib/mutations.js';
 import styles from './MessageList.module.css';
 
 interface Props {
@@ -25,6 +26,7 @@ export function MessageList({ chatId, onOpenThread }: Props) {
   const { data, fetchNextPage, hasNextPage, isFetching } = useMessages(chatId);
   const { data: chat } = useChat(chatId);
   const { data: members } = useChatMembers(chatId, chat?.type !== 'dm');
+  const markRead = useMarkRead(chatId);
 
   // Flatten and reverse pages so oldest-first appears at top.
   const messages = useMemo<Message[]>(() => {
@@ -40,7 +42,64 @@ export function MessageList({ chatId, onOpenThread }: Props) {
     return map;
   }, [members]);
 
-  const ref = useAutoScroll<HTMLDivElement>(chatId, messages.length);
+  const lastReadTs = chat?.lastReadTs ?? null;
+  const lastReadMessageId = chat?.lastReadMessageId ?? null;
+
+  // Index of the first message after the last-read boundary.
+  const firstUnreadIdx = useMemo(() => {
+    if (!lastReadTs) return -1;
+    return messages.findIndex(
+      (m) => m.ts > lastReadTs && m.id !== lastReadMessageId,
+    );
+  }, [messages, lastReadTs, lastReadMessageId]);
+  const unreadCount = firstUnreadIdx >= 0 ? messages.length - firstUnreadIdx : 0;
+
+  const firstUnread = firstUnreadIdx >= 0 ? messages[firstUnreadIdx] : undefined;
+  const anchorId = firstUnread ? `unread-divider-${firstUnread.id}` : null;
+
+  const ref = useAutoScroll<HTMLDivElement>(chatId, messages.length, anchorId);
+
+  // Visibility-based mark-read. Track the newest message that becomes visible,
+  // debounce 500ms after the last visibility change, then fire mark-read.
+  const candidateRef = useRef<{ id: string; ts: string } | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const target = entry.target as HTMLElement;
+          const id = target.dataset.messageId;
+          const ts = target.dataset.ts;
+          if (!id || !ts) continue;
+          // Only advance past current read state.
+          if (lastReadTs && ts <= lastReadTs) continue;
+          if (lastReadMessageId === id) continue;
+          if (!candidateRef.current || ts > candidateRef.current.ts) {
+            candidateRef.current = { id, ts };
+          }
+        }
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => {
+          const c = candidateRef.current;
+          candidateRef.current = null;
+          if (!c) return;
+          markRead.mutate(c.id);
+        }, 500);
+      },
+      { root: el, threshold: 0.5 },
+    );
+    const rows = el.querySelectorAll('[data-message-id]');
+    rows.forEach((row) => obs.observe(row));
+    return () => {
+      obs.disconnect();
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+    // markRead is a stable mutation handle; intentionally include for lint correctness.
+  }, [chatId, messages.length, lastReadTs, lastReadMessageId, markRead, ref]);
 
   useEffect(() => {
     const el = ref.current;
@@ -66,6 +125,7 @@ export function MessageList({ chatId, onOpenThread }: Props) {
           prev.senderJid !== m.senderJid ||
           new Date(m.ts).getTime() - new Date(prev.ts).getTime() > 4 * 60_000;
         const displayName = m.senderName ?? nameByJid.get(m.senderJid) ?? m.senderJid;
+        const isFirstUnread = i === firstUnreadIdx;
         return (
           <div key={m.id}>
             {newDay && (
@@ -73,13 +133,22 @@ export function MessageList({ chatId, onOpenThread }: Props) {
                 <span className={styles.pill}>{fmtDay(m.ts)}</span>
               </div>
             )}
-            <MessageRow
-              message={m}
-              showHead={showHead}
-              senderName={displayName}
-              senderInitials={displayName.slice(0, 2).toUpperCase()}
-              onOpenThread={() => onOpenThread(m.id)}
-            />
+            {isFirstUnread && (
+              <div id={`unread-divider-${m.id}`} className={styles.unreadDivider}>
+                <span className={styles.unreadLabel}>
+                  {unreadCount} new message{unreadCount === 1 ? '' : 's'}
+                </span>
+              </div>
+            )}
+            <div data-message-id={m.id} data-ts={m.ts}>
+              <MessageRow
+                message={m}
+                showHead={showHead}
+                senderName={displayName}
+                senderInitials={displayName.slice(0, 2).toUpperCase()}
+                onOpenThread={() => onOpenThread(m.id)}
+              />
+            </div>
           </div>
         );
       })}

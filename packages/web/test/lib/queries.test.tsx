@@ -36,6 +36,8 @@ describe('useChats', () => {
             workspace: 'work',
             memberCount: 7,
             unreadCount: 4,
+            lastReadMessageId: null,
+            lastReadTs: null,
           },
         ]),
       ),

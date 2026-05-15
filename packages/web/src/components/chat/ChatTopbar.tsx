@@ -80,9 +80,10 @@ export function ChatTopbar({ chat, threadOpen, onToggleThread }: Props) {
                     (opt.value === chat.workspace ? ' ' + styles.wsMenuItemActive : '')
                   }
                   onClick={() => {
-                    assign.mutate(opt.value, {
-                      onSuccess: () => setPickerOpen(false),
-                    });
+                    assign.mutate(
+                      { workspace: opt.value },
+                      { onSuccess: () => setPickerOpen(false) },
+                    );
                   }}
                   disabled={assign.isPending}
                 >

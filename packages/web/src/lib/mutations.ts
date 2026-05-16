@@ -153,6 +153,39 @@ export function useUpdateContactName(contactJid: string) {
   });
 }
 
+export function useUpdateChatLocalSubject(chatId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ localSubject }: { localSubject: string | null }) =>
+      apiFetch<void>(`/api/chats/${chatId}/local-subject`, {
+        method: 'PATCH',
+        body: { localSubject },
+      }),
+    onMutate: ({ localSubject }) => {
+      const prevChats = qc.getQueryData<Chat[]>(queryKeys.chats());
+      void qc.cancelQueries({ queryKey: queryKeys.chats() });
+
+      // Optimistic: chats resolver returns localSubject ?? subject ?? fallbacks,
+      // so writing into chat.subject is the right optimistic surface.
+      qc.setQueryData<Chat[]>(queryKeys.chats(), (old) =>
+        old?.map((c) => {
+          if (c.id !== chatId) return c;
+          if (localSubject !== null) return { ...c, subject: localSubject };
+          // Cleared: SSE invalidation will resurface the canonical WA subject.
+          return c;
+        }),
+      );
+      return { prevChats };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prevChats !== undefined) {
+        qc.setQueryData(queryKeys.chats(), ctx.prevChats);
+      }
+      showErrorToast("Couldn't rename chat — try again.");
+    },
+  });
+}
+
 export function useEditMessage(chatId: string, messageId: string) {
   const qc = useQueryClient();
   return useMutation({

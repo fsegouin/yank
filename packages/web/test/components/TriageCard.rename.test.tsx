@@ -6,9 +6,10 @@ import type { ReactNode } from 'react';
 import type { Chat } from '@yank/shared';
 import { TriageCard } from '../../src/components/triage/TriageCard.js';
 
-// Mock the mutation so we don't need a real API
+// Mock the mutations so we don't need a real API
 vi.mock('../../src/lib/mutations.js', () => ({
   useUpdateContactName: vi.fn(() => ({ mutate: vi.fn() })),
+  useUpdateChatLocalSubject: vi.fn(() => ({ mutate: vi.fn() })),
   useAssignWorkspace: vi.fn(() => ({ mutate: vi.fn() })),
 }));
 
@@ -76,10 +77,23 @@ describe('TriageCard rename', () => {
     expect(mockMutate).toHaveBeenCalledWith({ displayName: 'Alice New' });
   });
 
-  it('does not render InlineRename for group chat — shows plain text', () => {
+  it('renders InlineRename input for group chat (local subject)', () => {
     render(<TriageCard chat={makeGroupChat()} isFocused={false} onAssign={vi.fn()} />, { wrapper });
-    expect(screen.queryByRole('textbox')).toBeNull();
-    expect(screen.getByText('Family Group')).toBeTruthy();
+    const input = screen.getByRole('textbox');
+    expect((input as HTMLInputElement).value).toBe('Family Group');
+  });
+
+  it('calls useUpdateChatLocalSubject.mutate on blur commit for groups', async () => {
+    const { useUpdateChatLocalSubject } = await import('../../src/lib/mutations.js');
+    const mockMutate = vi.fn();
+    vi.mocked(useUpdateChatLocalSubject).mockReturnValue({ mutate: mockMutate } as unknown as ReturnType<typeof useUpdateChatLocalSubject>);
+
+    render(<TriageCard chat={makeGroupChat()} isFocused={false} onAssign={vi.fn()} />, { wrapper });
+    const input = screen.getByRole('textbox');
+    await userEvent.clear(input);
+    await userEvent.type(input, 'My Team');
+    fireEvent.blur(input);
+    expect(mockMutate).toHaveBeenCalledWith({ localSubject: 'My Team' });
   });
 
   it('Escape reverts input without calling mutate', async () => {

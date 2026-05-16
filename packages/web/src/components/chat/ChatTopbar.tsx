@@ -1,8 +1,13 @@
 import { useState } from 'react';
 import type { Chat, Workspace } from '@yank/shared';
 import { Avatar } from '../primitives/Avatar.js';
+import { InlineRename } from '../primitives/InlineRename.js';
 import { PinIcon, SearchIcon, ThreadIcon, MoreIcon } from '../icons/index.js';
-import { useAssignWorkspace } from '../../lib/mutations.js';
+import {
+  useAssignWorkspace,
+  useUpdateChatLocalSubject,
+  useUpdateContactName,
+} from '../../lib/mutations.js';
 import styles from './ChatTopbar.module.css';
 
 interface Props {
@@ -29,7 +34,21 @@ export function ChatTopbar({ chat, threadOpen, onToggleThread }: Props) {
   const title = chat.subject ?? chat.jid;
   const isDm = chat.type === 'dm';
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const assign = useAssignWorkspace(chat.id);
+  const updateContactName = useUpdateContactName(chat.jid);
+  const updateChatLocalSubject = useUpdateChatLocalSubject(chat.id);
+
+  const commitRename = (value: string) => {
+    if (isDm) {
+      updateContactName.mutate({ displayName: value });
+    } else {
+      updateChatLocalSubject.mutate({ localSubject: value });
+    }
+    setEditing(false);
+  };
+
   return (
     <div className={styles.topbar}>
       <div className={styles.left}>
@@ -40,7 +59,24 @@ export function ChatTopbar({ chat, threadOpen, onToggleThread }: Props) {
           square={!isDm}
         />
         <div className={styles.titleBox}>
-          <h1 className={styles.title}>{title}</h1>
+          {editing ? (
+            <div className={styles.titleEdit}>
+              <InlineRename
+                initialValue={chat.subject ?? ''}
+                placeholder={chat.jid}
+                onCommit={commitRename}
+                maxLength={80}
+              />
+            </div>
+          ) : (
+            <h1
+              className={styles.title}
+              onClick={() => setEditing(true)}
+              title="Click to rename"
+            >
+              {title}
+            </h1>
+          )}
           <div className={styles.sub}>
             <span>{isDm ? 'Direct message' : `${chat.memberCount} members`}</span>
             <span className={styles.sep}>·</span>
@@ -111,9 +147,37 @@ export function ChatTopbar({ chat, threadOpen, onToggleThread }: Props) {
         >
           <ThreadIcon size={15} />
         </button>
-        <button type="button" className={styles.iconBtn} title="Details">
-          <MoreIcon size={15} />
-        </button>
+        <div className={styles.wsPillWrap}>
+          <button
+            type="button"
+            className={styles.iconBtn}
+            title="More actions"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((o) => !o)}
+          >
+            <MoreIcon size={15} />
+          </button>
+          {menuOpen && (
+            <div
+              className={styles.wsMenu}
+              role="menu"
+              onMouseLeave={() => setMenuOpen(false)}
+            >
+              <button
+                type="button"
+                role="menuitem"
+                className={styles.wsMenuItem}
+                onClick={() => {
+                  setMenuOpen(false);
+                  setEditing(true);
+                }}
+              >
+                Rename chat
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

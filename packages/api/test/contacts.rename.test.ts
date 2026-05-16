@@ -137,12 +137,35 @@ describe('contacts rename', () => {
     expect(res.status).toBe(400);
   });
 
-  it('404 — contact not owned by user (wrong JID)', async () => {
-    const res = await fetch(`${baseUrl}/api/contacts/${encodeURIComponent('99999@s.whatsapp.net')}`, {
+  it('upserts a new contact row for a previously-unknown jid', async () => {
+    const unknownJid = '50264102985962@lid';
+    const received: string[] = [];
+    const sub = new Redis(redisC.getConnectionUrl());
+    await sub.subscribe(eventsChannel(USER));
+    sub.on('message', (_ch, payload) => received.push(payload));
+
+    const res = await fetch(`${baseUrl}/api/contacts/${encodeURIComponent(unknownJid)}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ displayName: 'Ghost' }),
+      body: JSON.stringify({ displayName: 'Bob from accounting' }),
     });
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(204);
+
+    const rows = await db
+      .select({ jid: contacts.jid, displayName: contacts.displayName })
+      .from(contacts)
+      .where(and(eq(contacts.userId, USER), eq(contacts.jid, unknownJid)));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.displayName).toBe('Bob from accounting');
+
+    await new Promise((r) => setTimeout(r, 300));
+    expect(received.some((p) => {
+      try {
+        const evt = JSON.parse(p) as { type: string; contactId: string; displayName: string };
+        return evt.type === 'contact-update' && evt.contactId === unknownJid && evt.displayName === 'Bob from accounting';
+      } catch { return false; }
+    })).toBe(true);
+
+    await sub.quit();
   });
 });

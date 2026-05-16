@@ -5,6 +5,7 @@ import {
   MessagesPageSchema,
   ChatMemberSchema,
   AssignmentBodySchema,
+  ChatLocalSubjectBodySchema,
   ContactRenameBodySchema,
   EditMessageBodySchema,
   MentionSchema,
@@ -108,6 +109,14 @@ describe('M4 DTO schemas', () => {
   it('EditMessageBodySchema enforces non-empty text', () => {
     expect(EditMessageBodySchema.parse({ text: 'hi' }).text).toBe('hi');
     expect(() => EditMessageBodySchema.parse({ text: '' })).toThrow();
+  });
+
+  it('ChatLocalSubjectBodySchema accepts trimmed 1..80 or null', () => {
+    expect(ChatLocalSubjectBodySchema.parse({ localSubject: 'Team' }).localSubject).toBe('Team');
+    expect(ChatLocalSubjectBodySchema.parse({ localSubject: null }).localSubject).toBeNull();
+    expect(() => ChatLocalSubjectBodySchema.parse({ localSubject: '' })).toThrow();
+    expect(() => ChatLocalSubjectBodySchema.parse({ localSubject: '   ' })).toThrow();
+    expect(() => ChatLocalSubjectBodySchema.parse({ localSubject: 'a'.repeat(81) })).toThrow();
   });
 });
 

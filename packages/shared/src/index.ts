@@ -20,6 +20,7 @@ export {
   SendMessageBodySchema,
   AssignmentBodySchema,
   ContactRenameBodySchema,
+  ChatLocalSubjectBodySchema,
   EditMessageBodySchema,
   WorkspaceSchema,
   ChatKindSchema,
@@ -35,6 +36,7 @@ export {
   type SendMessageBody,
   type AssignmentBody,
   type ContactRenameBody,
+  type ChatLocalSubjectBody,
   type EditMessageBody,
   type Workspace,
 } from './dto.js';

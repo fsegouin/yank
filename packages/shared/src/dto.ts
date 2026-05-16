@@ -119,6 +119,11 @@ export const ContactRenameBodySchema = z.object({
 });
 export type ContactRenameBody = z.infer<typeof ContactRenameBodySchema>;
 
+export const ChatLocalSubjectBodySchema = z.object({
+  localSubject: z.union([z.string().trim().min(1).max(80), z.null()]),
+});
+export type ChatLocalSubjectBody = z.infer<typeof ChatLocalSubjectBodySchema>;
+
 export const EditMessageBodySchema = z.object({
   text: z.string().min(1).max(65000),
 });

@@ -79,4 +79,19 @@ describe('migrations', () => {
     // pg_trgm word_similarity: "yankk" matches the word "yank" inside the message text
     expect(rows.length).toBeGreaterThan(0);
   });
+
+  it('chats has nullable local_subject text column', async () => {
+    const rows = await db.execute<{
+      column_name: string;
+      is_nullable: string;
+      data_type: string;
+    }>(
+      sql`SELECT column_name, is_nullable, data_type
+          FROM information_schema.columns
+          WHERE table_name = 'chats' AND column_name = 'local_subject'`,
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.is_nullable).toBe('YES');
+    expect(rows[0]?.data_type).toBe('text');
+  });
 });

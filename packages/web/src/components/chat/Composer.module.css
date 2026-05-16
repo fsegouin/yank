@@ -123,3 +123,10 @@
 .hint .kbd {
   font-size: 10px;
 }
+.editBanner {
+  background: var(--c-accent-soft, rgba(99, 102, 241, 0.12));
+  border-radius: 4px 4px 0 0;
+  color: var(--c-text-secondary);
+  font-size: 0.75rem;
+  padding: 4px 12px;
+}

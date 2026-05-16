@@ -30,7 +30,11 @@ type Item =
       kbd?: string;
     };
 
-export function CommandPalette() {
+interface CommandPaletteProps {
+  mode?: 'chats-only';
+}
+
+export function CommandPalette({ mode }: CommandPaletteProps = {}) {
   const navigate = useNavigate();
   const togglePalette = useUiStore((s) => s.togglePalette);
   const { data: chats = [] } = useChats();
@@ -43,26 +47,28 @@ export function CommandPalette() {
   }, []);
 
   const items = useMemo<Item[]>(() => {
-    const jumpItems: Item[] = chats.map((c) => ({
-      kind: 'jump',
-      id: `j-${c.id}`,
-      chatId: c.id,
-      type: c.type,
-      label: c.subject ?? c.jid,
-      meta: `${c.workspace}${c.unreadCount ? ` · ${c.unreadCount} unread` : ''}`,
-    }));
-    const actions: Item[] = [
-      { kind: 'action', id: 'a-triage', label: 'Open Triage', href: '/triage', kbd: '⌘3' },
-      { kind: 'action', id: 'a-search', label: 'Global search…', href: '/search', kbd: '⌘⇧F' },
-      { kind: 'action', id: 'a-diag', label: 'Open diagnostics', href: '/diagnostics' },
-      { kind: 'action', id: 'a-settings', label: 'Open settings', href: '/settings' },
-    ];
+    const jumpItems: Item[] = chats
+      .filter((c) => c.workspace !== 'hidden')
+      .map((c) => ({
+        kind: 'jump',
+        id: `j-${c.id}`,
+        chatId: c.id,
+        type: c.type,
+        label: c.subject ?? c.jid,
+        meta: `${c.workspace}${c.unreadCount ? ` · ${c.unreadCount} unread` : ''}`,
+      }));
+    const actions: Item[] =
+      mode === 'chats-only'
+        ? []
+        : [
+            { kind: 'action', id: 'a-triage', label: 'Open Triage', href: '/triage', kbd: '⌘3' },
+            { kind: 'action', id: 'a-search', label: 'Global search…', href: '/search', kbd: '⌘⇧F' },
+            { kind: 'action', id: 'a-diag', label: 'Open diagnostics', href: '/diagnostics' },
+            { kind: 'action', id: 'a-settings', label: 'Open settings', href: '/settings' },
+          ];
     const lower = q.toLowerCase();
-    const filtered = [...jumpItems, ...actions].filter((it) =>
-      it.label.toLowerCase().includes(lower),
-    );
-    return filtered;
-  }, [chats, q]);
+    return [...jumpItems, ...actions].filter((it) => it.label.toLowerCase().includes(lower));
+  }, [chats, q, mode]);
 
   const run = (it: Item) => {
     if (it.kind === 'jump') {
@@ -107,7 +113,7 @@ export function CommandPalette() {
         <input
           ref={inputRef}
           className={styles.input}
-          placeholder="Jump to chat, run command…"
+          placeholder={mode === 'chats-only' ? 'Jump to chat…' : 'Jump to chat, run command…'}
           value={q}
           onChange={(e) => {
             setQ(e.target.value);

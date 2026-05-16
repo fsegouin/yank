@@ -6,6 +6,7 @@ import {
   type Chat,
   type ChatMember,
   type MessagesPage,
+  type Workspace,
 } from '@yank/shared';
 import { z } from 'zod';
 import { apiFetch } from './api.js';
@@ -56,4 +57,17 @@ export function useChatMembers(chatId: string, enabled = true) {
       return ChatMemberListSchema.parse(raw);
     },
   });
+}
+
+export function useChatsForWorkspace(workspace: Workspace): Chat[] {
+  const { data: chats = [] } = useChats();
+  return chats.filter((c) => c.workspace === workspace);
+}
+
+export function useTriageChats(): Chat[] {
+  return useChatsForWorkspace('triage');
+}
+
+export function useTriageCount(): number {
+  return useTriageChats().length;
 }

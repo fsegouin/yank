@@ -54,6 +54,12 @@
   font-family: var(--font-mono);
 }
 
+.editedSuffix {
+  color: var(--c-text-muted);
+  font-size: 0.75rem;
+  margin-left: 0.25rem;
+}
+
 .deletedTombstone {
   color: var(--fg-2);
   font-style: italic;

@@ -9,10 +9,13 @@ import {
   messages,
   readState,
 } from '@yank/db/schema';
+import { AssignmentBodySchema } from '@yank/shared';
+import type { EventsPublisher } from '../events-publisher.js';
 
 export interface ChatsDeps {
   db: Db;
   userId: string;
+  events?: EventsPublisher;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -159,34 +162,44 @@ export function registerChatsRoutes(app: FastifyInstance<any, any, any, any>, de
     };
   });
 
-  app.post<{
-    Params: { id: string };
-    Body: { workspace: 'work' | 'personal' | 'triage' | 'hidden' };
-  }>('/api/chats/:id/assignment', async (req, reply) => {
-    const allowed = new Set(['work', 'personal', 'triage', 'hidden']);
-    const workspace = req.body?.workspace;
-    if (!workspace || !allowed.has(workspace)) {
-      return reply.code(400).send({ error: 'invalid_workspace' });
-    }
-    // Verify the chat belongs to this user.
-    const chat = await deps.db
-      .select({ id: chats.id })
-      .from(chats)
-      .where(and(eq(chats.userId, deps.userId), eq(chats.id, req.params.id)))
-      .limit(1);
-    if (!chat[0]) return reply.code(404).send({ error: 'not_found' });
+  app.post<{ Params: { id: string }; Body: unknown }>(
+    '/api/chats/:id/assignment',
+    async (req, reply) => {
+      const parsed = AssignmentBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: 'invalid_body', issues: parsed.error.issues });
+      }
+      const { workspace } = parsed.data;
 
-    await deps.db
-      .insert(chatAssignments)
-      .values({ chatId: chat[0].id, workspace })
-      .onConflictDoUpdate({
-        target: chatAssignments.chatId,
-        set: { workspace, assignedAt: new Date() },
-      });
+      const chat = await deps.db
+        .select({ id: chats.id })
+        .from(chats)
+        .where(and(eq(chats.userId, deps.userId), eq(chats.id, req.params.id)))
+        .limit(1);
+      if (!chat[0]) return reply.code(404).send({ error: 'not_found' });
 
-    reply.code(204);
-    return null;
-  });
+      await deps.db
+        .insert(chatAssignments)
+        .values({ chatId: chat[0].id, workspace })
+        .onConflictDoUpdate({
+          target: chatAssignments.chatId,
+          set: { workspace, assignedAt: new Date() },
+        });
+
+      if (deps.events) {
+        await deps.events.publish({
+          type: 'chat-assignment',
+          userId: deps.userId,
+          chatId: chat[0].id,
+          workspace,
+          assignedAt: new Date().toISOString(),
+        });
+      }
+
+      reply.code(204);
+      return null;
+    },
+  );
 
   app.post<{
     Params: { id: string };

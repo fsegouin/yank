@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { WorkspaceSchema } from './dto.js';
 
 // Events: daemon → Redis pub/sub `events:user:<userId>` → api → SSE → browser
 
@@ -54,6 +55,39 @@ export const MediaReadyEvent = Base.extend({
   status: z.enum(['ready', 'failed']),
 });
 
+export const ChatAssignmentEvent = Base.extend({
+  type: z.literal('chat-assignment'),
+  chatId: z.string().uuid(),
+  workspace: WorkspaceSchema,
+  assignedAt: z.string().datetime(),
+});
+
+export const ContactUpdateEvent = Base.extend({
+  type: z.literal('contact-update'),
+  contactId: z.string().min(1),
+  displayName: z.string(),
+  updatedAt: z.string().datetime(),
+});
+
+export const MessageEditEvent = Base.extend({
+  type: z.literal('message-edit'),
+  messageId: z.string().uuid(),
+  text: z.string(),
+  editedAt: z.string().datetime(),
+});
+
+export const MessageEditFailedEvent = Base.extend({
+  type: z.literal('message-edit-failed'),
+  messageId: z.string().uuid(),
+  reason: z.enum(['too-old', 'protocol', 'network']),
+});
+
+export const MediaBreakerStateEvent = Base.extend({
+  type: z.literal('media-breaker-state'),
+  state: z.enum(['open', 'closed', 'half-open']),
+  retryAt: z.string().datetime().optional(),
+});
+
 export const DaemonEventSchema = z.discriminatedUnion('type', [
   QrEvent,
   PairCodeEvent,
@@ -64,6 +98,11 @@ export const DaemonEventSchema = z.discriminatedUnion('type', [
   MessageEvent,
   MessageStatusEvent,
   MediaReadyEvent,
+  ChatAssignmentEvent,
+  ContactUpdateEvent,
+  MessageEditEvent,
+  MessageEditFailedEvent,
+  MediaBreakerStateEvent,
 ]);
 
 export type DaemonEvent = z.infer<typeof DaemonEventSchema>;
@@ -85,6 +124,7 @@ export const SendCommand = Base.extend({
   chatJid: z.string(),
   text: z.string(),
   quotedWaId: z.string().optional(),
+  mentionedJid: z.array(z.string()).optional(),
 });
 
 export const ReactCommand = Base.extend({
@@ -109,6 +149,15 @@ export const TypingCommand = Base.extend({
 export const DownloadMediaCommand = Base.extend({
   type: z.literal('download-media'),
   messageId: z.string().uuid(),
+  bypassBreaker: z.boolean().optional(),
+});
+
+export const EditMessageCommand = Base.extend({
+  type: z.literal('edit-message'),
+  messageId: z.string().uuid(),
+  waMessageId: z.string().min(1),
+  chatJid: z.string().min(1),
+  text: z.string().min(1).max(65000),
 });
 
 export const ApiCommandSchema = z.discriminatedUnion('type', [
@@ -118,6 +167,7 @@ export const ApiCommandSchema = z.discriminatedUnion('type', [
   MarkReadCommand,
   TypingCommand,
   DownloadMediaCommand,
+  EditMessageCommand,
 ]);
 
 export type ApiCommand = z.infer<typeof ApiCommandSchema>;

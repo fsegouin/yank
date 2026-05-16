@@ -1,6 +1,7 @@
 import type { Media } from '@yank/shared';
 import { useMediaLoad } from '../../hooks/useMediaLoad.js';
 import { PlayIcon } from '../icons/index.js';
+import { MediaPausedChip } from './MediaPausedChip.js';
 import styles from './VoiceNote.module.css';
 
 function fmtDur(ms: number): string {
@@ -51,6 +52,7 @@ export function VoiceNote({ messageId, media }: Props) {
       <span className={styles.dur + ' mono'}>{fmtDur(media.durationMs ?? 0)}</span>
       <span className={styles.hint}>
         {busy ? 'loading…' : media.status === 'failed' ? 'failed (tap to retry)' : 'tap to load'}
+        <MediaPausedChip />
       </span>
     </button>
   );

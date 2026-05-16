@@ -1,4 +1,7 @@
 import type { TypedEventEmitter } from './typed-emitter.js';
+import type { InboundEdit } from './normalize.js';
+
+export type { InboundEdit } from './normalize.js';
 
 export type ChatType = 'dm' | 'group' | 'community' | 'newsletter';
 
@@ -97,6 +100,7 @@ export interface ConnectorEvents {
   status: (info: OutboundStatus) => void;
   reaction: (reaction: InboundReaction) => void;
   delete: (deletion: InboundDeletion) => void;
+  edit: (edit: InboundEdit) => void;
   presence: (update: InboundPresence) => void;
   'group-members': (chatJid: string, members: InboundGroupMember[]) => void;
   receipt: (receipt: InboundReceipt) => void;
@@ -106,6 +110,7 @@ export interface SendArgs {
   chatJid: string;
   text: string;
   quotedWaId?: string;
+  mentionedJid?: string[];
 }
 
 export interface SendResult {
@@ -130,6 +135,12 @@ export interface Connector extends TypedEventEmitter<ConnectorEvents> {
    * message. Uses Baileys' `reuploadRequest` hook to recover from stale `directPath`s.
    */
   downloadMedia(args: DownloadMediaArgs): Promise<Buffer>;
+  /**
+   * Edit an already-sent WhatsApp message. Sends Baileys' protocolMessage EDIT.
+   * Throws if the message is too old (>15 min on WA's servers), the socket is
+   * disconnected, or the message type is unsupported.
+   */
+  editMessage(chatJid: string, waMessageId: string, text: string): Promise<void>;
 }
 
 export interface DownloadMediaArgs {

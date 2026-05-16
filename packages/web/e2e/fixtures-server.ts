@@ -22,6 +22,24 @@ const chat = {
   lastReadTs: null,
 };
 
+const triageChat = {
+  id: 'b1ee0d52-2c8e-7e7a-a4cf-000000000010',
+  userId: chat.userId,
+  jid: 'b@g.us',
+  type: 'group',
+  subject: 'Triage Test Chat',
+  lastMessageAt: '2026-05-15T10:00:00.000Z',
+  lastMessagePreview: 'hello triage',
+  archived: false,
+  mutedUntil: null,
+  pinned: false,
+  workspace: 'triage',
+  memberCount: 2,
+  unreadCount: 1,
+  lastReadMessageId: null,
+  lastReadTs: null,
+};
+
 const message = {
   id: 'b1ee0d52-2c8e-7e7a-a4cf-000000000050',
   userId: chat.userId,
@@ -43,7 +61,7 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === '/api/chats') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify([chat]));
+    res.end(JSON.stringify([chat, triageChat]));
     return;
   }
   if (
@@ -92,6 +110,21 @@ const server = http.createServer(async (req, res) => {
       Connection: 'keep-alive',
     });
     // Keep the stream open without sending events.
+    return;
+  }
+
+  if (
+    url.pathname.match(/^\/api\/chats\/[^/]+\/assignment$/) &&
+    req.method === 'POST'
+  ) {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
+  if (url.pathname === '/api/media/breaker-state') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ state: 'closed', retryAt: null }));
     return;
   }
 

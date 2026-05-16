@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, beforeAll, afterEach, afterAll } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -9,6 +9,9 @@ import {
   createRoute,
   RouterProvider,
 } from '@tanstack/react-router';
+import { setupServer } from 'msw/node';
+import { http, HttpResponse } from 'msw';
+import { waitFor } from '@testing-library/react';
 import { Rail } from '../../../src/components/shell/Rail.js';
 import { useUiStore } from '../../../src/state/ui.js';
 
@@ -58,5 +61,50 @@ describe('Rail', () => {
     renderRail();
     const btn = screen.getByRole('button', { name: /work/i });
     expect(btn).toHaveAttribute('aria-current', 'true');
+  });
+});
+
+const server = setupServer();
+beforeAll(() => server.listen());
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
+
+describe('Rail triage count indicator', () => {
+  it('shows a red dot when triage count > 0', async () => {
+    server.use(
+      http.get('/api/chats', () =>
+        HttpResponse.json([
+          {
+            id: 'b1ee0d52-2c8e-7e7a-a4cf-000000000020',
+            userId: 'b1ee0d52-2c8e-7e7a-a4cf-000000000099',
+            jid: 'x@g.us',
+            type: 'group',
+            subject: 'Triage One',
+            lastMessageAt: null,
+            lastMessagePreview: null,
+            archived: false,
+            mutedUntil: null,
+            pinned: false,
+            workspace: 'triage',
+            memberCount: 1,
+            unreadCount: 0,
+            lastReadMessageId: null,
+            lastReadTs: null,
+          },
+        ]),
+      ),
+    );
+    renderRail();
+    await waitFor(() => {
+      expect(document.querySelector('[data-triage-dot]')).toBeInTheDocument();
+    });
+  });
+
+  it('hides the red dot when triage count is 0', async () => {
+    server.use(http.get('/api/chats', () => HttpResponse.json([])));
+    renderRail();
+    await waitFor(() => {
+      expect(document.querySelector('[data-triage-dot]')).not.toBeInTheDocument();
+    });
   });
 });

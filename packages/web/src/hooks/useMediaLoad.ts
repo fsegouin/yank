@@ -18,6 +18,7 @@ export interface UseMediaLoadResult {
 export function useMediaLoad(
   messageId: string,
   currentStatus: string | null | undefined,
+  bypassBreaker = false,
 ): UseMediaLoadResult {
   const fired = useRef(false);
   const [triggered, setTriggered] = useState(false);
@@ -37,12 +38,13 @@ export function useMediaLoad(
     setTriggered(true);
     // Fire-and-forget; the api enqueues, the daemon downloads, the SSE event
     // tells us when to refetch.
-    void fetch(`/api/media/${messageId}`, { credentials: 'same-origin' }).catch(() => {
+    const url = bypassBreaker ? `/api/media/${messageId}?bypass=1` : `/api/media/${messageId}`;
+    void fetch(url, { credentials: 'same-origin' }).catch(() => {
       // Network errors are silent here; user can retry by remounting / re-clicking.
       fired.current = false;
       setTriggered(false);
     });
-  }, [messageId, currentStatus]);
+  }, [messageId, currentStatus, bypassBreaker]);
 
   return { triggered, trigger };
 }

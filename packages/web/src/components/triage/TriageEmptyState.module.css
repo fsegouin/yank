@@ -1,0 +1,24 @@
+.wrap {
+  padding: 60px 0;
+  text-align: center;
+  color: var(--fg-2);
+}
+
+.glyph {
+  font-size: 32px;
+  margin-bottom: 8px;
+  color: var(--c-triage);
+}
+
+.heading {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--fg-0);
+  margin: 0 0 4px;
+}
+
+.sub {
+  font-size: 13px;
+  color: var(--fg-2);
+  margin: 0;
+}

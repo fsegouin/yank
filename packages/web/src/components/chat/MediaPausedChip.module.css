@@ -1,0 +1,9 @@
+.chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  background: var(--c-warn-soft, rgba(255, 180, 0, 0.15));
+  color: var(--c-warn, #c8930a);
+  white-space: nowrap;
+}

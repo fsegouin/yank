@@ -1,0 +1,33 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-0);
+  margin-bottom: 16px;
+  font-size: 12px;
+  color: var(--fg-2);
+  white-space: nowrap;
+  flex-wrap: nowrap;
+}
+
+.track {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-2);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  background: var(--c-triage);
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+
+.hint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-3);
+}

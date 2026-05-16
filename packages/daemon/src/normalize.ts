@@ -226,3 +226,31 @@ function bytesToBase64(b: Uint8Array | null | undefined): string | undefined {
   if (!b || b.length === 0) return undefined;
   return Buffer.from(b).toString('base64');
 }
+
+export interface InboundEdit {
+  chatJid: string;
+  targetWaMessageId: string;
+  text: string;
+  ts: Date;
+}
+
+export function normalizeBaileysEdit(m: proto.IWebMessageInfo): InboundEdit | null {
+  const protocolMsg = m.message?.protocolMessage;
+  if (!protocolMsg) return null;
+  if (protocolMsg.type !== proto.Message.ProtocolMessage.Type.MESSAGE_EDIT) return null;
+  const targetWaMessageId = protocolMsg.key?.id;
+  const chatJid = m.key?.remoteJid;
+  if (!targetWaMessageId || !chatJid) return null;
+  const editedMsg = protocolMsg.editedMessage;
+  const text =
+    editedMsg?.conversation ??
+    editedMsg?.extendedTextMessage?.text ??
+    null;
+  if (!text) return null;
+  return {
+    chatJid,
+    targetWaMessageId,
+    text,
+    ts: new Date(Number(m.messageTimestamp ?? 0) * 1000),
+  };
+}

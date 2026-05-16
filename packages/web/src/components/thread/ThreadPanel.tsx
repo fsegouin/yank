@@ -13,6 +13,7 @@ interface Props {
 
 export function ThreadPanel({ chatId, parentMessageId }: Props) {
   const closeThread = useUiStore((s) => s.closeThread);
+  const myJid = useUiStore((s) => s.currentJid ?? '');
   const { data: parent } = useParentMessage(chatId, parentMessageId);
   const { data: replies = [] } = useThreadReplies(chatId, parentMessageId);
   const send = useSendMessage(chatId);
@@ -45,6 +46,8 @@ export function ThreadPanel({ chatId, parentMessageId }: Props) {
               senderInitials={parent.senderJid.slice(0, 2).toUpperCase()}
               onOpenThread={() => {}}
               inThread={true}
+              chatId={chatId}
+              myJid={myJid}
             />
           </div>
         )}
@@ -58,6 +61,8 @@ export function ThreadPanel({ chatId, parentMessageId }: Props) {
             senderInitials={m.senderJid.slice(0, 2).toUpperCase()}
             onOpenThread={() => {}}
             inThread={true}
+            chatId={chatId}
+            myJid={myJid}
           />
         ))}
       </div>

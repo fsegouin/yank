@@ -116,3 +116,70 @@ describe('useEventStream', () => {
     }).not.toThrow();
   });
 });
+
+import type { Chat } from '@yank/shared';
+import { queryKeys } from '../../src/lib/queryKeys.js';
+
+const CHAT_ID = 'b1ee0d52-2c8e-7e7a-a4cf-000000000002';
+const USER_ID = 'b1ee0d52-2c8e-7e7a-a4cf-000000000099';
+
+const baseChat: Chat = {
+  id: CHAT_ID,
+  userId: USER_ID,
+  jid: 'x@g.us',
+  type: 'group',
+  subject: 'Alpha',
+  lastMessageAt: null,
+  lastMessagePreview: null,
+  archived: false,
+  mutedUntil: null,
+  pinned: false,
+  workspace: 'triage',
+  memberCount: 2,
+  unreadCount: 0,
+  lastReadMessageId: null,
+  lastReadTs: null,
+};
+
+describe('chat-assignment SSE handler', () => {
+  it('patches workspace in chats cache when event arrives', () => {
+    const qc = new QueryClient();
+    qc.setQueryData(queryKeys.chats(), [baseChat]);
+
+    renderHook(() => useEventStream(), { wrapper: wrap(qc) });
+
+    act(() => {
+      FakeEventSource.instances[0]?.emit('chat-assignment', {
+        type: 'chat-assignment',
+        userId: USER_ID,
+        chatId: CHAT_ID,
+        workspace: 'work',
+        assignedAt: '2026-05-15T12:00:00.000Z',
+      });
+    });
+
+    const cached = qc.getQueryData<Chat[]>(queryKeys.chats());
+    expect(cached?.[0]?.workspace).toBe('work');
+  });
+
+  it('no-ops when chatId is not in cache', () => {
+    const qc = new QueryClient();
+    qc.setQueryData(queryKeys.chats(), [baseChat]);
+
+    renderHook(() => useEventStream(), { wrapper: wrap(qc) });
+
+    act(() => {
+      FakeEventSource.instances[0]?.emit('chat-assignment', {
+        type: 'chat-assignment',
+        userId: USER_ID,
+        chatId: '00000000-0000-7000-8000-000000000000',
+        workspace: 'work',
+        assignedAt: '2026-05-15T12:00:00.000Z',
+      });
+    });
+
+    const cached = qc.getQueryData<Chat[]>(queryKeys.chats());
+    // baseChat unchanged
+    expect(cached?.[0]?.workspace).toBe('triage');
+  });
+});

@@ -140,6 +140,26 @@ describe('M2 roundtrip', () => {
     expect(connector.sent.find((s) => s.text === 'outbound from roundtrip')).toBeTruthy();
   });
 
+  it('outbound: POST /messages with mentions passes mentionedJid through to connector', async () => {
+    const chatsData = (await (await fetch(`${baseUrl}/api/chats`)).json()) as Array<{ id: string }>;
+    const chatId = chatsData[0]!.id;
+
+    const postRes = await fetch(`${baseUrl}/api/chats/${chatId}/messages`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        text: '@Alice hello',
+        mentions: [{ start: 0, end: 6, jid: 'alice@s.whatsapp.net' }],
+      }),
+    });
+    expect(postRes.status).toBe(202);
+
+    await new Promise((r) => setTimeout(r, 500));
+    const sentEntry = connector.sent.find((s) => s.text === '@Alice hello');
+    expect(sentEntry).toBeDefined();
+    expect(sentEntry!.mentionedJid).toEqual(['alice@s.whatsapp.net']);
+  });
+
   it('SSE: subscribers receive message events when a new inbound arrives', async () => {
     const seen: string[] = [];
     const controller = new AbortController();

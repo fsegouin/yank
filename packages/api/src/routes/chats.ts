@@ -28,6 +28,7 @@ export function registerChatsRoutes(app: FastifyInstance<any, any, any, any>, de
         jid: chats.jid,
         type: chats.type,
         subject: chats.subject,
+        localSubject: chats.localSubject,
         lastMessageAt: chats.lastMessageAt,
         lastMessagePreview: chats.lastMessagePreview,
         archived: chats.archived,
@@ -67,6 +68,7 @@ export function registerChatsRoutes(app: FastifyInstance<any, any, any, any>, de
 
     return rows.map((r) => {
       const subject =
+        r.localSubject ??
         r.subject ??
         (r.type === 'dm'
           ? r.contactDisplayName ?? r.contactPushName ?? r.contactBusinessName ?? null
@@ -99,6 +101,7 @@ export function registerChatsRoutes(app: FastifyInstance<any, any, any, any>, de
         jid: chats.jid,
         type: chats.type,
         subject: chats.subject,
+        localSubject: chats.localSubject,
         lastMessageAt: chats.lastMessageAt,
         lastMessagePreview: chats.lastMessagePreview,
         archived: chats.archived,
@@ -139,6 +142,7 @@ export function registerChatsRoutes(app: FastifyInstance<any, any, any, any>, de
     const r = rows[0];
     if (!r) return reply.code(404).send({ error: 'not_found' });
     const subject =
+      r.localSubject ??
       r.subject ??
       (r.type === 'dm'
         ? r.contactDisplayName ?? r.contactPushName ?? r.contactBusinessName ?? null

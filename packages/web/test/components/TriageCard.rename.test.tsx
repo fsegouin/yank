@@ -9,7 +9,6 @@ import { TriageCard } from '../../src/components/triage/TriageCard.js';
 // Mock the mutations so we don't need a real API
 vi.mock('../../src/lib/mutations.js', () => ({
   useUpdateContactName: vi.fn(() => ({ mutate: vi.fn() })),
-  useUpdateChatLocalSubject: vi.fn(() => ({ mutate: vi.fn() })),
   useAssignWorkspace: vi.fn(() => ({ mutate: vi.fn() })),
 }));
 
@@ -77,23 +76,22 @@ describe('TriageCard rename', () => {
     expect(mockMutate).toHaveBeenCalledWith({ displayName: 'Alice New' });
   });
 
-  it('renders InlineRename input for group chat (local subject)', () => {
+  it('renders group chat name as plain text (rename lives on the chat topbar)', () => {
     render(<TriageCard chat={makeGroupChat()} isFocused={false} onAssign={vi.fn()} />, { wrapper });
-    const input = screen.getByRole('textbox');
-    expect((input as HTMLInputElement).value).toBe('Family Group');
+    expect(screen.queryByRole('textbox')).toBeNull();
+    expect(screen.getByText('Family Group')).toBeTruthy();
   });
 
-  it('calls useUpdateChatLocalSubject.mutate on blur commit for groups', async () => {
-    const { useUpdateChatLocalSubject } = await import('../../src/lib/mutations.js');
-    const mockMutate = vi.fn();
-    vi.mocked(useUpdateChatLocalSubject).mockReturnValue({ mutate: mockMutate } as unknown as ReturnType<typeof useUpdateChatLocalSubject>);
-
-    render(<TriageCard chat={makeGroupChat()} isFocused={false} onAssign={vi.fn()} />, { wrapper });
-    const input = screen.getByRole('textbox');
-    await userEvent.clear(input);
-    await userEvent.type(input, 'My Team');
-    fireEvent.blur(input);
-    expect(mockMutate).toHaveBeenCalledWith({ localSubject: 'My Team' });
+  it('falls back to jid when a group has no subject', () => {
+    render(
+      <TriageCard
+        chat={makeGroupChat({ subject: null, jid: '447700000001@g.us' })}
+        isFocused={false}
+        onAssign={vi.fn()}
+      />,
+      { wrapper },
+    );
+    expect(screen.getByText('447700000001@g.us')).toBeTruthy();
   });
 
   it('Escape reverts input without calling mutate', async () => {

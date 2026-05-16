@@ -1,7 +1,7 @@
 import type { Chat, Workspace } from '@yank/shared';
 import { avatarGradient } from '../../utils/avatarGradient.js';
 import { InlineRename } from '../primitives/InlineRename.js';
-import { useUpdateChatLocalSubject, useUpdateContactName } from '../../lib/mutations.js';
+import { useUpdateContactName } from '../../lib/mutations.js';
 import styles from './TriageCard.module.css';
 
 interface TriageCardProps {
@@ -25,7 +25,6 @@ export function TriageCard({ chat, focused, isFocused, onAssign }: TriageCardPro
   const isFocusedEffective = isFocused ?? focused ?? false;
 
   const updateContactName = useUpdateContactName(chat.jid);
-  const updateChatLocalSubject = useUpdateChatLocalSubject(chat.id);
 
   return (
     <div
@@ -48,11 +47,7 @@ export function TriageCard({ chat, focused, isFocused, onAssign }: TriageCardPro
               maxLength={80}
             />
           ) : (
-            <InlineRename
-              initialValue={chat.subject ?? ''}
-              onCommit={(localSubject) => updateChatLocalSubject.mutate({ localSubject })}
-              maxLength={80}
-            />
+            <span className={styles.who}>{label}</span>
           )}
           {ts && <span className={styles.whoMeta}>· {ts}</span>}
         </div>

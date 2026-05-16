@@ -11,6 +11,7 @@ import { ThreadLink } from './ThreadLink.js';
 import { MediaImage } from './MediaImage.js';
 import { DocCard } from './DocCard.js';
 import { VoiceNote } from './VoiceNote.js';
+import { SetNicknameAffordance } from './SetNicknameAffordance.js';
 import { useStar } from '../../lib/mutations.js';
 import styles from './Message.module.css';
 
@@ -121,6 +122,9 @@ export function MessageRow({
           {showHead && (
             <div className={styles.head}>
               <span className={styles.author}>{senderName}</span>
+              {senderName === message.senderJid && (
+                <SetNicknameAffordance senderJid={message.senderJid} />
+              )}
               <span className={styles.time + ' mono'}>{ts}</span>
             </div>
           )}
@@ -150,6 +154,9 @@ export function MessageRow({
         {showHead && (
           <div className={styles.head}>
             <span className={styles.author}>{senderName}</span>
+            {senderName === message.senderJid && (
+              <SetNicknameAffordance senderJid={message.senderJid} />
+            )}
             <span className={styles.time + ' mono'}>{ts}</span>
             <StatusGlyph status={message.status} />
           </div>

@@ -92,6 +92,7 @@ describe('TriageCard', () => {
   it('renders group chat subject for group type', () => {
     const groupChat: Chat = { ...baseChat, type: 'group', subject: 'Engineering Team' };
     render(<TriageCard chat={groupChat} focused={false} onAssign={vi.fn()} />, { wrapper });
-    expect(screen.getByText('Engineering Team')).toBeInTheDocument();
+    // Group chats now render the subject in a rename input (local subject override target).
+    expect(screen.getByDisplayValue('Engineering Team')).toBeInTheDocument();
   });
 });

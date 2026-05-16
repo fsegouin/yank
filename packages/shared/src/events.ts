@@ -88,6 +88,13 @@ export const MediaBreakerStateEvent = Base.extend({
   retryAt: z.string().datetime().optional(),
 });
 
+export const ChatLocalSubjectUpdateEvent = Base.extend({
+  type: z.literal('chat-local-subject-update'),
+  chatId: z.string().uuid(),
+  localSubject: z.string().nullable(),
+  updatedAt: z.string().datetime(),
+});
+
 export const DaemonEventSchema = z.discriminatedUnion('type', [
   QrEvent,
   PairCodeEvent,
@@ -103,6 +110,7 @@ export const DaemonEventSchema = z.discriminatedUnion('type', [
   MessageEditEvent,
   MessageEditFailedEvent,
   MediaBreakerStateEvent,
+  ChatLocalSubjectUpdateEvent,
 ]);
 
 export type DaemonEvent = z.infer<typeof DaemonEventSchema>;

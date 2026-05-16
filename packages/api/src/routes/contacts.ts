@@ -1,5 +1,4 @@
 import type { FastifyInstance } from 'fastify';
-import { and, eq } from 'drizzle-orm';
 import type { Db } from '@yank/db';
 import { contacts } from '@yank/db/schema';
 import { ContactRenameBodySchema } from '@yank/shared';
@@ -25,22 +24,16 @@ export function registerContactsRoutes(app: FastifyInstance<any, any, any, any>,
       // contactJid is URL-encoded by the client (e.g. 447700000001%40s.whatsapp.net)
       const contactJid = decodeURIComponent(req.params.contactJid);
 
-      // Ownership check — confirm the contact exists for this user
-      const existing = await deps.db
-        .select({ jid: contacts.jid })
-        .from(contacts)
-        .where(and(eq(contacts.userId, deps.userId), eq(contacts.jid, contactJid)))
-        .limit(1);
-
-      if (!existing[0]) {
-        return reply.code(404).send({ error: 'not_found' });
-      }
-
-      // Update display_name (contacts table has no updated_at column)
+      // Upsert so unknown senders (e.g. @lid members without a prior contact row) can
+      // be given a local nickname. ON CONFLICT only updates display_name — other
+      // fields populated later by daemon contact sync remain untouched.
       await deps.db
-        .update(contacts)
-        .set({ displayName })
-        .where(and(eq(contacts.userId, deps.userId), eq(contacts.jid, contactJid)));
+        .insert(contacts)
+        .values({ userId: deps.userId, jid: contactJid, displayName })
+        .onConflictDoUpdate({
+          target: [contacts.userId, contacts.jid],
+          set: { displayName },
+        });
 
       // Publish SSE event; updatedAt is the JS server clock (acceptable for v1 single-user)
       const updatedAt = new Date().toISOString();

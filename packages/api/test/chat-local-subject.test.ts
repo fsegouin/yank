@@ -14,16 +14,16 @@ import { createEventsBus } from '../src/events-bus.js';
 import { createEventsPublisher } from '../src/events-publisher.js';
 import { registerEventsRoute } from '../src/routes/events.js';
 import { registerChatsRoutes } from '../src/routes/chats.js';
-import { registerContactsRoutes } from '../src/routes/contacts.js';
-import { contacts } from '@yank/db/schema';
-import { and, eq } from 'drizzle-orm';
+import { registerChatLocalSubjectRoutes } from '../src/routes/chat-local-subject.js';
+import { chats } from '@yank/db/schema';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const migrationsFolder = resolve(__dirname, '..', '..', 'db', 'drizzle');
-const USER = '0193fe00-0000-7000-8000-000000000098';
-const CONTACT_JID = '447700000001@s.whatsapp.net';
+const USER = '0193fe00-0000-7000-8000-0000000000a1';
+const CHAT_ID = '0193fe00-0000-7000-8000-0000000000a2';
+const CHAT_JID = '120363000000000000@g.us';
 
-describe('contacts rename', () => {
+describe('chat local-subject', () => {
   let pg: StartedPostgreSqlContainer;
   let redisC: StartedRedisContainer;
   let client: ReturnType<typeof postgres>;
@@ -41,11 +41,13 @@ describe('contacts rename', () => {
     await migrate(db, { migrationsFolder });
     await ensureSingleUser(db, USER, 'Rename Test');
 
-    // Seed a contact row
-    await db.insert(contacts).values({
+    // Seed a group chat row with a canonical WA subject
+    await db.insert(chats).values({
+      id: CHAT_ID,
       userId: USER,
-      jid: CONTACT_JID,
-      pushName: 'Alice Push',
+      jid: CHAT_JID,
+      type: 'group',
+      subject: 'WA Subject',
     });
 
     redis = new Redis(redisC.getConnectionUrl());
@@ -57,7 +59,7 @@ describe('contacts rename', () => {
     app = Fastify({ logger: false });
     registerEventsRoute(app, { bus: eventsBus });
     registerChatsRoutes(app, { db, userId: USER });
-    registerContactsRoutes(app, { db, userId: USER, eventsPublisher });
+    registerChatLocalSubjectRoutes(app, { db, userId: USER, eventsPublisher });
     await app.listen({ port: 0, host: '127.0.0.1' });
     const addr = app.server.address();
     const port = typeof addr === 'object' && addr ? addr.port : 0;
@@ -73,99 +75,77 @@ describe('contacts rename', () => {
     await redisC?.stop();
   });
 
-  it('happy path: 204 + DB updated + event published', async () => {
-    // Subscribe to events channel before making the request
+  it('happy path: 204 + GET /api/chats surfaces the local subject + event published', async () => {
     const received: string[] = [];
     const sub = new Redis(redisC.getConnectionUrl());
     await sub.subscribe(eventsChannel(USER));
     sub.on('message', (_ch, payload) => received.push(payload));
 
-    const encodedJid = encodeURIComponent(CONTACT_JID);
-    const res = await fetch(`${baseUrl}/api/contacts/${encodedJid}`, {
+    const res = await fetch(`${baseUrl}/api/chats/${CHAT_ID}/local-subject`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ displayName: 'Alice Renamed' }),
+      body: JSON.stringify({ localSubject: 'My Team' }),
     });
     expect(res.status).toBe(204);
 
-    // DB updated
-    const rows = await db
-      .select({ displayName: contacts.displayName })
-      .from(contacts)
-      .where(and(eq(contacts.userId, USER), eq(contacts.jid, CONTACT_JID)));
-    expect(rows[0]?.displayName).toBe('Alice Renamed');
+    const list = await fetch(`${baseUrl}/api/chats`).then((r) => r.json() as Promise<{ id: string; subject: string | null }[]>);
+    const row = list.find((c) => c.id === CHAT_ID);
+    expect(row?.subject).toBe('My Team');
 
-    // Event published within 1s
     await new Promise((r) => setTimeout(r, 300));
     expect(received.some((p) => {
       try {
-        const evt = JSON.parse(p) as { type: string; contactId: string; displayName: string };
-        return evt.type === 'contact-update' && evt.contactId === CONTACT_JID && evt.displayName === 'Alice Renamed';
+        const evt = JSON.parse(p) as { type: string; chatId: string; localSubject: string | null };
+        return evt.type === 'chat-local-subject-update' && evt.chatId === CHAT_ID && evt.localSubject === 'My Team';
       } catch { return false; }
     })).toBe(true);
 
     await sub.quit();
   });
 
-  it('400 — empty displayName', async () => {
-    const encodedJid = encodeURIComponent(CONTACT_JID);
-    const res = await fetch(`${baseUrl}/api/contacts/${encodedJid}`, {
+  it('null clears the override — WA subject re-surfaces', async () => {
+    await fetch(`${baseUrl}/api/chats/${CHAT_ID}/local-subject`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ displayName: '' }),
+      body: JSON.stringify({ localSubject: 'Temporary' }),
     });
-    expect(res.status).toBe(400);
-  });
 
-  it('400 — displayName too long (81 chars)', async () => {
-    const encodedJid = encodeURIComponent(CONTACT_JID);
-    const res = await fetch(`${baseUrl}/api/contacts/${encodedJid}`, {
+    const res = await fetch(`${baseUrl}/api/chats/${CHAT_ID}/local-subject`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ displayName: 'a'.repeat(81) }),
-    });
-    expect(res.status).toBe(400);
-  });
-
-  it('400 — missing body', async () => {
-    const encodedJid = encodeURIComponent(CONTACT_JID);
-    const res = await fetch(`${baseUrl}/api/contacts/${encodedJid}`, {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({}),
-    });
-    expect(res.status).toBe(400);
-  });
-
-  it('upserts a new contact row for a previously-unknown jid', async () => {
-    const unknownJid = '50264102985962@lid';
-    const received: string[] = [];
-    const sub = new Redis(redisC.getConnectionUrl());
-    await sub.subscribe(eventsChannel(USER));
-    sub.on('message', (_ch, payload) => received.push(payload));
-
-    const res = await fetch(`${baseUrl}/api/contacts/${encodeURIComponent(unknownJid)}`, {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ displayName: 'Bob from accounting' }),
+      body: JSON.stringify({ localSubject: null }),
     });
     expect(res.status).toBe(204);
 
-    const rows = await db
-      .select({ jid: contacts.jid, displayName: contacts.displayName })
-      .from(contacts)
-      .where(and(eq(contacts.userId, USER), eq(contacts.jid, unknownJid)));
-    expect(rows).toHaveLength(1);
-    expect(rows[0]?.displayName).toBe('Bob from accounting');
+    const list = await fetch(`${baseUrl}/api/chats`).then((r) => r.json() as Promise<{ id: string; subject: string | null }[]>);
+    const row = list.find((c) => c.id === CHAT_ID);
+    expect(row?.subject).toBe('WA Subject');
+  });
 
-    await new Promise((r) => setTimeout(r, 300));
-    expect(received.some((p) => {
-      try {
-        const evt = JSON.parse(p) as { type: string; contactId: string; displayName: string };
-        return evt.type === 'contact-update' && evt.contactId === unknownJid && evt.displayName === 'Bob from accounting';
-      } catch { return false; }
-    })).toBe(true);
+  it('400 — empty localSubject', async () => {
+    const res = await fetch(`${baseUrl}/api/chats/${CHAT_ID}/local-subject`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ localSubject: '' }),
+    });
+    expect(res.status).toBe(400);
+  });
 
-    await sub.quit();
+  it('400 — localSubject too long', async () => {
+    const res = await fetch(`${baseUrl}/api/chats/${CHAT_ID}/local-subject`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ localSubject: 'a'.repeat(81) }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('404 — unknown chatId', async () => {
+    const res = await fetch(`${baseUrl}/api/chats/00000000-0000-0000-0000-0000000000ff/local-subject`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ localSubject: 'X' }),
+    });
+    expect(res.status).toBe(404);
   });
 });

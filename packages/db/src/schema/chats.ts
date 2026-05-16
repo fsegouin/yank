@@ -19,6 +19,7 @@ export const chats = pgTable(
     jid: text('jid').notNull(),
     type: text('type', { enum: ['dm', 'group', 'community', 'newsletter'] }).notNull(),
     subject: text('subject'),
+    localSubject: text('local_subject'),
     lastMessageAt: timestamp('last_message_at', { withTimezone: true }),
     lastMessagePreview: text('last_message_preview'),
     archived: boolean('archived').notNull().default(false),

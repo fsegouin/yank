@@ -23,6 +23,7 @@ const NAMED_EVENTS = [
   'message-edit',
   'message-edit-failed',
   'media-breaker-state',
+  'chat-local-subject-update',
 ] as const;
 
 export interface UseEventStreamOptions {
@@ -129,6 +130,9 @@ export function useEventStream(opts: UseEventStreamOptions = {}): void {
             state: evt.state,
             retryAt: evt.retryAt,
           });
+          return;
+        case 'chat-local-subject-update':
+          qc.invalidateQueries({ queryKey: queryKeys.chats() });
           return;
         // qr / sync-progress / pair-code are consumed via onEvent by the setup screen.
         default:

@@ -116,6 +116,24 @@ describe('M4 SSE events', () => {
     });
     expect(evt.type).toBe('media-breaker-state');
   });
+
+  it('parses chat-local-subject-update with a name', () => {
+    const evt = DaemonEventSchema.parse({
+      userId, type: 'chat-local-subject-update',
+      chatId, localSubject: 'My Team',
+      updatedAt: '2026-05-16T12:00:00.000Z',
+    });
+    expect(evt.type).toBe('chat-local-subject-update');
+  });
+
+  it('parses chat-local-subject-update with null (cleared override)', () => {
+    const evt = DaemonEventSchema.parse({
+      userId, type: 'chat-local-subject-update',
+      chatId, localSubject: null,
+      updatedAt: '2026-05-16T12:00:00.000Z',
+    });
+    expect(evt.type).toBe('chat-local-subject-update');
+  });
 });
 
 describe('M4 commands', () => {

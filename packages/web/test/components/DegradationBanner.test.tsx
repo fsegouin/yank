@@ -12,7 +12,7 @@ describe('DegradationBanner', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     act(() => {
-      useConnectionStore.setState({ status: 'connecting' });
+      useConnectionStore.setState({ status: 'connecting', everConnected: false });
     });
   });
   afterEach(() => {
@@ -25,9 +25,17 @@ describe('DegradationBanner', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders soft strip when connecting', () => {
+  it('renders soft strip when connecting on first load (never connected)', () => {
     render(<DegradationBanner />);
     expect(screen.getByText(/connecting/i)).toBeInTheDocument();
+  });
+
+  it('renders nothing when transiently connecting after a previous connection', () => {
+    // Simulate SSE reconnect cycle: was connected, briefly back to connecting
+    act(() => { useConnectionStore.getState().setStatus('connected'); });
+    act(() => { useConnectionStore.setState({ status: 'connecting' }); });
+    const { container } = render(<DegradationBanner />);
+    expect(container.firstChild).toBeNull();
   });
 
   it('renders warning strip when disconnected', () => {
@@ -42,19 +50,11 @@ describe('DegradationBanner', () => {
     expect(screen.getByRole('button', { name: /linking required/i })).toBeInTheDocument();
   });
 
-  it('grace timer: after 10s without connected event, flips to disconnected', () => {
-    // Start as connecting (default); after 10 s should flip to disconnected
-    render(<DegradationBanner graceMs={10_000} />);
+  it('does not predictively flip connecting to disconnected after any timer elapses', () => {
+    render(<DegradationBanner />);
     expect(useConnectionStore.getState().status).toBe('connecting');
-    act(() => { vi.advanceTimersByTime(10_000); });
-    expect(useConnectionStore.getState().status).toBe('disconnected');
-  });
-
-  it('grace timer: cleared when connected event arrives before 10s', () => {
-    render(<DegradationBanner graceMs={10_000} />);
-    act(() => { useConnectionStore.getState().setStatus('connected'); });
-    act(() => { vi.advanceTimersByTime(10_000); });
-    // Should still be connected, not flipped to disconnected
-    expect(useConnectionStore.getState().status).toBe('connected');
+    act(() => { vi.advanceTimersByTime(60_000); });
+    // No predictive degradation; only daemon-emitted 'disconnected' should flip status.
+    expect(useConnectionStore.getState().status).toBe('connecting');
   });
 });

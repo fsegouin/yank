@@ -1,35 +1,11 @@
-import { useEffect, useRef } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { useConnectionStatus, useConnectionStore } from '../../state/connection.js';
+import { useConnectionStatus, useEverConnected } from '../../state/connection.js';
 import styles from './DegradationBanner.module.css';
 
-interface Props {
-  /** Duration in ms before treating no-event as disconnected. Default: 10 000. */
-  graceMs?: number;
-}
-
-export function DegradationBanner({ graceMs = 10_000 }: Props) {
+export function DegradationBanner() {
   const status = useConnectionStatus();
+  const everConnected = useEverConnected();
   const navigate = useNavigate();
-  const graceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // 10-second grace timer: if no 'connected' event arrives, assume disconnected.
-  useEffect(() => {
-    if (status === 'connected' || status === 'disconnected' || status === 'linking-required') {
-      if (graceTimer.current) {
-        clearTimeout(graceTimer.current);
-        graceTimer.current = null;
-      }
-      return;
-    }
-    // status === 'connecting' — start grace timer
-    graceTimer.current = setTimeout(() => {
-      useConnectionStore.getState().setStatus('disconnected');
-    }, graceMs);
-    return () => {
-      if (graceTimer.current) clearTimeout(graceTimer.current);
-    };
-  }, [status, graceMs]);
 
   if (status === 'connected') return null;
 
@@ -53,7 +29,10 @@ export function DegradationBanner({ graceMs = 10_000 }: Props) {
     );
   }
 
-  // connecting
+  // status === 'connecting'
+  // Once we've been connected this session, treat brief reconnect cycles as silent —
+  // only surface a real 'disconnected' event from the daemon as a visible problem.
+  if (everConnected) return null;
   return (
     <div className={`${styles.banner} ${styles.info}`}>
       Connecting…
